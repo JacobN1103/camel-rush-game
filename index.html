@@ -1,0 +1,3061 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>캐멀 러시 3D</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:none}
+#gc{width:100%;height:100%;position:absolute;top:0;left:0}
+#ui{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;
+  display:flex;flex-direction:column;align-items:center;justify-content:center}
+#title{text-align:center;margin-top:-3%}
+#title h1{font-family:'Arial Black',sans-serif;font-size:clamp(36px,8vw,80px);
+  background:linear-gradient(180deg,#FFD700 0%,#FF8C00 50%,#DAA520 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 4px 20px rgba(255,215,0,0.6));
+  letter-spacing:6px;transform:perspective(500px) rotateX(8deg);
+  margin-bottom:4px}
+#title .sub{font-family:Arial,sans-serif;font-size:clamp(12px,2vw,20px);color:#FBC02D;
+  letter-spacing:8px;opacity:0.8}
+#btns{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:4%}
+.btn{pointer-events:auto;position:relative;display:flex;align-items:center;justify-content:center;
+  min-width:160px;padding:12px 44px;border:none;border-radius:50px;
+  background:linear-gradient(180deg,#FF8F00 0%,#E65100 100%);
+  color:#fff;font-family:'Arial Black',sans-serif;font-size:clamp(16px,2vw,22px);
+  letter-spacing:2px;cursor:pointer;
+  box-shadow:0 8px 0 #BF360C,0 12px 30px rgba(255,111,0,0.3);
+  transform:perspective(800px) rotateX(15deg) translateZ(20px);
+  transition:all 0.1s ease}
+.btn::before{content:'';position:absolute;inset:2px;border-radius:48px;
+  background:linear-gradient(180deg,rgba(255,255,255,0.25) 0%,transparent 50%);pointer-events:none}
+.btn:active{transform:perspective(800px) rotateX(15deg) translateZ(0);box-shadow:0 2px 0 #BF360C,0 8px 20px rgba(255,111,0,0.3)}
+.btn .icon{font-size:clamp(18px,2.5vw,28px);margin-right:6px}
+.btn-secondary{background:linear-gradient(180deg,rgba(255,255,255,0.12) 0%,rgba(255,255,255,0.03) 100%);
+  box-shadow:0 4px 0 rgba(255,255,255,0.08),0 8px 20px rgba(0,0,0,0.3);
+  border:1px solid rgba(255,215,0,0.25);
+  font-size:clamp(12px,1.4vw,15px);padding:8px 32px;min-width:140px}
+#dice-area{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5}
+#info{position:absolute;bottom:3%;left:50%;transform:translateX(-50%);
+  font-family:Arial,sans-serif;font-size:clamp(9px,1vw,12px);color:rgba(255,255,255,0.2);
+  letter-spacing:2px;z-index:10;pointer-events:none}
+
+/* ── GAME UI ── */
+#gameUI{position:absolute;inset:0;z-index:11;pointer-events:none;
+  display:none;flex-direction:column;justify-content:space-between;
+  font-family:Arial,sans-serif;color:#fff}
+#gameUI.show{display:flex}
+#topBar{display:flex;justify-content:space-between;align-items:flex-start;
+  padding:14px 18px;gap:10px}
+.hud{pointer-events:auto;background:linear-gradient(180deg,rgba(20,10,30,0.7),rgba(10,5,20,0.85));
+  border:1px solid rgba(255,215,0,0.3);border-radius:14px;padding:8px 16px;
+  font-size:clamp(13px,1.6vw,18px);font-weight:bold;letter-spacing:1px;
+  box-shadow:0 4px 18px rgba(0,0,0,0.5);backdrop-filter:blur(6px)}
+.hud .label{font-size:0.7em;opacity:0.6;letter-spacing:2px;display:block;margin-bottom:2px}
+.hud .val{color:#FFD700;font-size:1.1em}
+#bottomBar{display:flex;flex-direction:column;align-items:center;gap:8px;
+  padding:0 14px 14px;pointer-events:none}
+#actionPanel{pointer-events:auto;
+  background:linear-gradient(180deg,rgba(20,10,30,0.85),rgba(10,5,20,0.92));
+  border:1px solid rgba(255,215,0,0.3);border-radius:18px;padding:10px 14px;
+  display:none;backdrop-filter:blur(8px);
+  box-shadow:0 8px 30px rgba(0,0,0,0.6)}
+#actionPanel.show{display:block}
+.actionTitle{color:#FFD700;font-size:12px;letter-spacing:2px;opacity:0.8;
+  margin-bottom:8px;text-align:center}
+#actionBtns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.action-btn{pointer-events:auto;display:flex;flex-direction:column;align-items:center;
+  min-width:120px;padding:10px 14px;border:none;border-radius:14px;cursor:pointer;
+  background:linear-gradient(180deg,rgba(255,143,0,0.22),rgba(230,81,0,0.28));
+  border:1.5px solid rgba(255,215,0,0.35);
+  color:#fff;font-family:inherit;letter-spacing:1px;
+  box-shadow:0 4px 0 rgba(0,0,0,0.35),0 6px 18px rgba(0,0,0,0.4);
+  transition:transform 0.1s ease,box-shadow 0.1s ease,background 0.15s}
+.action-btn:hover:not(:disabled){transform:translateY(-3px);
+  background:linear-gradient(180deg,rgba(255,143,0,0.4),rgba(230,81,0,0.5));}
+.action-btn:active:not(:disabled){transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,0.35)}
+.action-btn:disabled{opacity:0.35;cursor:not-allowed;filter:grayscale(0.6)}
+.action-btn .aIcon{font-size:22px;margin-bottom:4px}
+.action-btn .aLabel{font-weight:bold;font-size:13px}
+.action-btn .aHint{font-size:10px;opacity:0.75;margin-top:2px}
+#standings{position:absolute;top:60px;right:14px;width:140px;pointer-events:auto;
+  background:linear-gradient(180deg,rgba(20,10,30,0.7),rgba(10,5,20,0.85));
+  border:1px solid rgba(255,215,0,0.25);border-radius:12px;padding:8px 10px;
+  font-size:11px;letter-spacing:1px;backdrop-filter:blur(6px)}
+#standings .stTitle{color:#FFD700;font-size:10px;letter-spacing:2px;opacity:0.7;margin-bottom:6px;text-align:center}
+.st-row{display:flex;align-items:center;gap:6px;padding:3px 2px;border-radius:6px}
+.st-row .rk{width:14px;color:#FFD700;font-weight:bold;font-size:10px}
+.st-row .sw{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 -2px 3px rgba(0,0,0,0.3)}
+.st-row .pos{margin-left:auto;font-size:10px;opacity:0.7}
+.st-row .crazy{color:#FFD700;font-size:9px}
+/* Player boards (left side) */
+#playerBoard{position:absolute;top:60px;left:14px;width:170px;display:flex;flex-direction:column;gap:6px;pointer-events:auto}
+.player-card{background:linear-gradient(180deg,rgba(20,10,30,0.7),rgba(10,5,20,0.85));
+  border:1px solid rgba(255,215,0,0.18);border-radius:10px;padding:6px 10px;
+  font-size:11px;letter-spacing:0.5px;backdrop-filter:blur(6px);
+  transition:all 0.2s ease;color:#ddd}
+.player-card.active{border-color:#FFD700;box-shadow:0 0 16px rgba(255,215,0,0.45);
+  background:linear-gradient(180deg,rgba(255,143,0,0.15),rgba(10,5,20,0.85));color:#fff}
+.player-card.human .pName::before{content:'👑 '}
+.player-card .pName{font-weight:bold;font-size:12px;color:#FFD700;margin-bottom:2px}
+.player-card .pStats{font-size:10px;opacity:0.85;letter-spacing:0.5px}
+/* Sub-menu (modal-like overlay for action sub-choices) */
+#subMenu{position:absolute;left:50%;bottom:140px;transform:translateX(-50%);
+  display:none;pointer-events:auto;
+  background:linear-gradient(180deg,rgba(30,15,40,0.95),rgba(15,8,25,0.97));
+  border:1.5px solid rgba(255,215,0,0.4);border-radius:16px;padding:14px 18px;
+  min-width:280px;max-width:90vw;z-index:14;
+  box-shadow:0 10px 40px rgba(0,0,0,0.7);backdrop-filter:blur(10px)}
+#subMenu.show{display:block}
+#subMenu .subTitle{color:#FFD700;font-size:12px;letter-spacing:2px;text-align:center;margin-bottom:10px}
+#subMenu .subRow{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:10px}
+#subMenu .subSide{display:flex;gap:8px;justify-content:center;margin-bottom:10px}
+#subMenu .subColumns{display:flex;gap:14px;justify-content:center;margin-bottom:10px}
+#subMenu .subCol{display:flex;flex-direction:column;align-items:center;gap:6px;color:#FFD700;font-size:11px}
+#subMenu .mini-btn{padding:8px 12px;border:none;border-radius:10px;cursor:pointer;
+  color:#fff;font-family:inherit;font-size:11px;font-weight:bold;letter-spacing:0.5px;
+  text-shadow:0 1px 2px rgba(0,0,0,0.6);
+  border:1.5px solid rgba(255,255,255,0.25);
+  transition:transform 0.1s ease,box-shadow 0.1s ease}
+#subMenu .mini-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 4px 14px rgba(255,215,0,0.3)}
+#subMenu .mini-btn.tile-btn{min-width:32px;background:#5D4037;color:#FFD700}
+#subMenu .side-btn{padding:8px 16px;border-radius:10px;cursor:pointer;
+  background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.2);
+  color:#fff;font-family:inherit;font-size:12px}
+#subMenu .side-btn.sel{background:rgba(255,215,0,0.25);border-color:#FFD700}
+#subMenu .cancel-btn{display:block;margin:0 auto;padding:6px 18px;
+  background:rgba(239,83,80,0.2);border:1px solid rgba(239,83,80,0.5);
+  border-radius:10px;color:#fff;cursor:pointer;font-size:11px;letter-spacing:1px}
+#subMenu .cancel-btn:hover{background:rgba(239,83,80,0.4)}
+#toast{position:absolute;top:30%;left:50%;transform:translate(-50%,-50%) scale(0.8);
+  pointer-events:none;font-family:'Arial Black',sans-serif;font-size:clamp(20px,4vw,40px);
+  letter-spacing:3px;color:#FFD700;text-shadow:0 4px 16px rgba(0,0,0,0.9),0 0 30px rgba(255,215,0,0.6);
+  opacity:0;transition:all 0.4s cubic-bezier(.2,1.4,.4,1);z-index:12}
+#toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+
+/* ── GAME OVER UI ── */
+#gameOverUI{position:absolute;inset:0;z-index:13;display:none;
+  flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(circle at center,rgba(20,5,30,0.7) 0%,rgba(0,0,0,0.92) 80%);
+  font-family:Arial,sans-serif;color:#fff;backdrop-filter:blur(4px)}
+#gameOverUI.show{display:flex}
+#gameOverUI h2{font-family:'Arial Black',sans-serif;font-size:clamp(28px,5vw,52px);
+  background:linear-gradient(180deg,#FFD700 0%,#FF8C00 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  letter-spacing:6px;margin-bottom:14px;
+  filter:drop-shadow(0 4px 16px rgba(255,215,0,0.6))}
+#gameOverUI .subWin{color:#FBC02D;letter-spacing:3px;margin-bottom:18px;font-size:clamp(13px,1.8vw,18px)}
+#finalRanking{display:flex;flex-direction:column;gap:6px;margin-bottom:18px;
+  background:rgba(20,10,30,0.6);border:1px solid rgba(255,215,0,0.3);
+  border-radius:14px;padding:14px 24px;min-width:240px}
+.fr-row{display:flex;align-items:center;gap:10px;font-size:14px;letter-spacing:1px}
+.fr-row .rk{width:24px;font-weight:bold;color:#FFD700;font-size:16px;text-align:center}
+.fr-row .sw{width:18px;height:18px;border-radius:50%;box-shadow:inset 0 -3px 4px rgba(0,0,0,0.3)}
+.fr-row .nm{flex:1}
+.fr-row .pos{opacity:0.6;font-size:12px}
+#finalCoins{font-size:clamp(16px,2.4vw,22px);color:#FFD700;letter-spacing:3px;margin-bottom:18px;
+  text-shadow:0 2px 10px rgba(255,215,0,0.4)}
+</style></head><body>
+<div id="gc"></div>
+<div id="ui">
+  <div id="title">
+    <h1>🐪 캐멀 러시</h1>
+    <div class="sub">C A M E L &nbsp; R U S H &nbsp; 3 D</div>
+  </div>
+  <div id="btns">
+    <button class="btn" id="startBtn"><span class="icon">🏁</span>게임 시작</button>
+    <button class="btn btn-secondary" id="howBtn"><span class="icon">📖</span>게임 방법</button>
+  </div>
+</div>
+<div id="info">↔ 드래그 회전 &nbsp;·&nbsp; 🖱 클릭 진행</div>
+
+<!-- ── GAME UI ── -->
+<div id="gameUI">
+  <div id="topBar">
+    <div class="hud"><span class="label">분단경</span><span class="val">#<span id="legNum">1</span></span></div>
+    <div class="hud"><span class="label">피라미드 주사위</span><span class="val">🎲 <span id="diceLeft">6/6</span></span></div>
+    <div class="hud"><span class="label">현재 차례</span><span class="val" id="currentTurn">나</span></div>
+  </div>
+  <div id="standings">
+    <div class="stTitle">낙타 순위</div>
+    <div id="stList"></div>
+  </div>
+  <div id="playerBoard"></div>
+  <div id="bottomBar">
+    <div id="actionPanel">
+      <div class="actionTitle" id="actionTitle">행동을 선택하세요</div>
+      <div id="actionBtns">
+        <button class="action-btn" id="btnRoll">
+          <div class="aIcon">🎲</div>
+          <div class="aLabel">피라미드 흔들기</div>
+          <div class="aHint">+1💰 · 주사위 1개</div>
+        </button>
+        <button class="action-btn" id="btnLegBet">
+          <div class="aIcon">📜</div>
+          <div class="aLabel">분단경 베팅</div>
+          <div class="aHint">색 1등이면 5/3/1💰</div>
+        </button>
+        <button class="action-btn" id="btnSpectator">
+          <div class="aIcon">👥</div>
+          <div class="aLabel">관중판 배치</div>
+          <div class="aHint">통과 시 +1💰</div>
+        </button>
+        <button class="action-btn" id="btnFinalBet">
+          <div class="aIcon">🏁</div>
+          <div class="aLabel">최종 베팅</div>
+          <div class="aHint">총우승/꼴찌</div>
+        </button>
+      </div>
+    </div>
+  </div>
+  <div id="subMenu"></div>
+  <div id="toast"></div>
+</div>
+
+<!-- ── GAME OVER UI ── -->
+<div id="gameOverUI">
+  <h2 id="gameOverTitle">🏆 결승</h2>
+  <div class="subWin" id="winnerText"></div>
+  <div id="finalRanking"></div>
+  <div id="finalCoins"></div>
+  <button class="btn" id="restartBtn"><span class="icon">🔄</span>다시 시작</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/RGBELoader.js"></script>
+<!-- Post-processing -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/MaskPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/math/SimplexNoise.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/SSAOShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/SSAOPass.js"></script>
+<script>
+// ── GLB animation mixers (declared early for animate() loop) ──
+const animMixers = [];
+
+// ── SCENE ──
+const scene = new THREE.Scene();
+// Linear fog — keeps nearby scenery crisp, fades distant terrain into the sky-dome horizon.
+scene.background = new THREE.Color(0x3a1f3a);
+scene.fog = new THREE.Fog(0x3a1f3a, 12, 32);
+
+const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(9, 5.5, 13);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.95;
+document.getElementById('gc').appendChild(renderer.domElement);
+
+// ── POST-PROCESSING (Bloom + SSAO + Vignette) ──
+// Wrap the renderer with an EffectComposer pipeline. Each pass is added only
+// if its dependency loaded successfully (graceful fallback to plain renderer).
+let composer = null;
+let bloomPass = null, ssaoPass = null;
+
+function VignetteShader() {
+  return {
+    uniforms: {
+      tDiffuse: { value: null },
+      offset:   { value: 1.0 },
+      darkness: { value: 1.6 }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform sampler2D tDiffuse;
+      uniform float offset;
+      uniform float darkness;
+      varying vec2 vUv;
+      void main() {
+        vec4 texel = texture2D(tDiffuse, vUv);
+        vec2 uv = (vUv - 0.5) * vec2(offset);
+        float vig = smoothstep(0.85, 0.18 * darkness, dot(uv, uv));
+        // warm slight tint at edges (sunset feel)
+        vec3 edgeTint = mix(texel.rgb * vig, texel.rgb * vig * vec3(1.05, 0.95, 0.85), 1.0 - vig);
+        gl_FragColor = vec4(mix(edgeTint, texel.rgb, vig), texel.a);
+      }
+    `
+  };
+}
+
+if (typeof THREE.EffectComposer === 'function' && typeof THREE.RenderPass === 'function') {
+  composer = new THREE.EffectComposer(renderer);
+  composer.setSize(window.innerWidth, window.innerHeight);
+  composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  // Pick the beauty pass: SSAOPass renders the scene with AO baked in.
+  // If unavailable, fall back to a plain RenderPass.
+  if (typeof THREE.SSAOPass === 'function') {
+    ssaoPass = new THREE.SSAOPass(scene, camera, window.innerWidth, window.innerHeight);
+    ssaoPass.kernelRadius = 0.5;
+    ssaoPass.minDistance = 0.002;
+    ssaoPass.maxDistance = 0.08;
+    if (THREE.SSAOPass.OUTPUT) ssaoPass.output = THREE.SSAOPass.OUTPUT.Default;
+    composer.addPass(ssaoPass);
+  } else {
+    composer.addPass(new THREE.RenderPass(scene, camera));
+  }
+
+  // Bloom — selective glow only on the brightest highlights (torches, finials)
+  if (typeof THREE.UnrealBloomPass === 'function') {
+    bloomPass = new THREE.UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      0.35,  // strength — subtle
+      0.6,   // radius
+      0.78   // threshold — only the brightest emissives bloom
+    );
+    composer.addPass(bloomPass);
+  }
+
+  // Vignette — warm darkening at edges (last)
+  if (typeof THREE.ShaderPass === 'function') {
+    const vigPass = new THREE.ShaderPass(VignetteShader());
+    composer.addPass(vigPass);
+  }
+}
+
+// ── LIGHTS ──
+const ambient = new THREE.AmbientLight(0x6a5478, 0.32);
+scene.add(ambient);
+
+// Hemisphere light: warm sand below + purple dusk sky above
+const hemi = new THREE.HemisphereLight(0xB8895C, 0x2A1838, 0.28);
+scene.add(hemi);
+
+const moonLight = new THREE.DirectionalLight(0xF0E0B8, 0.65);
+moonLight.position.set(8, 15, -10);
+moonLight.castShadow = true;
+moonLight.shadow.mapSize.width = 1024;
+moonLight.shadow.mapSize.height = 1024;
+moonLight.shadow.camera.near = 0.5;
+moonLight.shadow.camera.far = 30;
+moonLight.shadow.camera.left = -14;
+moonLight.shadow.camera.right = 14;
+moonLight.shadow.camera.top = 14;
+moonLight.shadow.camera.bottom = -14;
+scene.add(moonLight);
+
+const heatLight = new THREE.DirectionalLight(0xFF8844, 0.3);
+heatLight.position.set(-5, 3, 8);
+scene.add(heatLight);
+
+const rimLight = new THREE.DirectionalLight(0x9966DD, 0.35);
+rimLight.position.set(0, -2, -12);
+scene.add(rimLight);
+
+// ── SANDPAPER TEXTURE (procedural) ──
+function makeSandTexture(w, h) {
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  const imageData = ctx.createImageData(w, h);
+  const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const n = (Math.random() - 0.5) * 0.12;
+    const base = 200 + n * 255;
+    data[i] = base * 0.85;     // R
+    data[i+1] = base * 0.72;   // G
+    data[i+2] = base * 0.45;   // B
+    data[i+3] = 255;
+  }
+  ctx.putImageData(imageData, 0, 0);
+  return new THREE.CanvasTexture(canvas);
+}
+
+// ── DESERT TERRAIN ──
+function createDesert() {
+  const group = new THREE.Group();
+  const seg = 180;
+  const geom = new THREE.PlaneGeometry(60, 60, seg, seg); // larger so edges are masked by fog
+  geom.rotateX(-Math.PI / 2);
+  const verts = geom.attributes.position.array;
+  
+  for (let i = 0; i < verts.length; i += 3) {
+    const x = verts[i], z = verts[i+2];
+    const dist = Math.sqrt(x*x + z*z);
+    
+    // Local dune waves
+    let h = 0;
+    h += Math.sin(x * 0.4 + z * 0.3) * 0.35;
+    h += Math.cos(x * 0.7 - z * 0.5) * 0.2;
+    h += Math.sin(x * 0.15) * Math.cos(z * 0.2) * 0.4;
+    // Larger waves for distant terrain (rolling dunes)
+    h += Math.sin(x * 0.08) * Math.cos(z * 0.07) * 0.5;
+    
+    // Inner flat zone for oval track
+    if (dist < 7) h *= Math.max(0, (dist - 7) * 0.8);
+    // Smooth transition into dunes
+    if (dist >= 7 && dist < 9) h *= (dist - 7) / 2.0;
+    
+    // Gentle mid dunes (9-13)
+    if (dist > 9 && dist < 13) h += (dist - 9) * 0.18;
+    
+    // Distant mountain rim (13+) — rises gradually like a far skyline
+    if (dist > 13) {
+      const ramp = Math.min(1, (dist - 13) / 6);
+      h += ramp * (1.2 + Math.sin(x * 0.18) * 0.6 + Math.cos(z * 0.22) * 0.5);
+      // additional far peaks
+      if (dist > 18) h += (dist - 18) * 0.18 + Math.sin(x * 0.11 + z * 0.13) * 0.8;
+    }
+    
+    verts[i+1] = h;
+  }
+  
+  geom.computeVertexNormals();
+  
+  const sandTex = makeSandTexture(512, 512);
+  sandTex.wrapS = sandTex.wrapT = THREE.RepeatWrapping;
+  sandTex.repeat.set(15, 15);
+  
+  const mat = new THREE.MeshStandardMaterial({
+    map: sandTex,
+    color: 0xD4B87C,
+    roughness: 0.95,
+    metalness: 0.0,
+    flatShading: false,
+  });
+  
+  const mesh = new THREE.Mesh(geom, mat);
+  mesh.position.y = -0.5;
+  mesh.receiveShadow = true;
+  mesh.castShadow = true;
+  mesh.userData.isSandTerrain = true; // tag for PBR texture override
+  group.add(mesh);
+  
+  // Color variation patches (subtle darker/warmer spots)
+  for (let i = 0; i < 12; i++) {
+    const patch = new THREE.Mesh(
+      new THREE.CircleGeometry(0.5 + Math.random() * 1.5, 12),
+      new THREE.MeshStandardMaterial({
+        color: new THREE.Color().setHSL(0.08 + Math.random() * 0.03, 0.4, 0.45 + Math.random() * 0.1),
+        transparent: true,
+        opacity: 0.15,
+        roughness: 1
+      })
+    );
+    const a = Math.random() * Math.PI * 2;
+    const d = 3 + Math.random() * 5;
+    patch.position.set(Math.cos(a) * d, -0.48, Math.sin(a) * d);
+    patch.rotation.x = -Math.PI / 2;
+    group.add(patch);
+  }
+  
+  return group;
+}
+
+const desert = createDesert();
+scene.add(desert);
+
+// ── SKY DOME (gradient backdrop) ──
+// Large inverted sphere with a sunset/dusk gradient. Hides any holes and gives
+// the scene a proper horizon line. Doesn't receive fog so it stays solid behind
+// the fading distant terrain.
+function createSkyDome() {
+  const skyGeom = new THREE.SphereGeometry(50, 32, 24);
+  const skyMat = new THREE.ShaderMaterial({
+    uniforms: {
+      topColor:     { value: new THREE.Color(0x140820) }, // deep night purple
+      midColor:     { value: new THREE.Color(0x3a1f3a) }, // matches fog
+      horizonColor: { value: new THREE.Color(0x6e3a48) }  // warm dusk band
+    },
+    vertexShader: `
+      varying vec3 vWorldDir;
+      void main() {
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vWorldDir = normalize(wp.xyz);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 topColor;
+      uniform vec3 midColor;
+      uniform vec3 horizonColor;
+      varying vec3 vWorldDir;
+      void main() {
+        float h = vWorldDir.y; // -1 = below, 0 = horizon, 1 = zenith
+        // band at horizon: bright warm, then transitions to mid then top
+        float horizonBand = smoothstep(0.25, -0.05, h); // 1 near horizon
+        float midBand     = smoothstep(0.6, 0.15, h);   // 1 in lower sky
+        vec3 col = mix(topColor, midColor, midBand);
+        col = mix(col, horizonColor, horizonBand);
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `,
+    side: THREE.BackSide,
+    fog: false,
+    depthWrite: false
+  });
+  const mesh = new THREE.Mesh(skyGeom, skyMat);
+  mesh.renderOrder = -1; // draw before everything
+  return mesh;
+}
+const skyDome = createSkyDome();
+scene.add(skyDome);
+
+// ── SAND DUST PARTICLES ──
+function createDust() {
+  const count = 400;
+  const geom = new THREE.BufferGeometry();
+  const pos = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+  const offsets = new Float32Array(count);
+  
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const d = 2 + Math.random() * 8;
+    pos[i*3] = Math.cos(a) * d;
+    pos[i*3+1] = Math.random() * 2 + 0.5;
+    pos[i*3+2] = Math.sin(a) * d;
+    sizes[i] = Math.random() * 0.08 + 0.02;
+    offsets[i] = Math.random() * Math.PI * 2;
+  }
+  geom.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geom.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+  geom.setAttribute('offset', new THREE.BufferAttribute(offsets, 1));
+  
+  const mat = new THREE.PointsMaterial({
+    color: 0xD4B87C,
+    size: 0.04,
+    transparent: true,
+    opacity: 0.3,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  });
+  
+  return {mesh: new THREE.Points(geom, mat), geom, offsets};
+}
+
+const dust = createDust();
+scene.add(dust.mesh);
+
+// ── MOON ──
+const moonGroup = new THREE.Group();
+const moonGeom = new THREE.SphereGeometry(1.0, 48, 48);
+const moonMat = new THREE.MeshStandardMaterial({
+  color: 0xFFF9C4,
+  roughness: 0.4,
+  metalness: 0.05,
+  emissive: 0xFFF9C4,
+  emissiveIntensity: 0.03
+});
+const moonMesh = new THREE.Mesh(moonGeom, moonMat);
+moonMesh.castShadow = false;
+moonGroup.add(moonMesh);
+
+// Moon craters (subtle)
+for (let i = 0; i < 15; i++) {
+  const a = Math.random() * Math.PI * 2;
+  const theta = Math.random() * Math.PI * 0.8;
+  const r = Math.sin(theta) * 0.85;
+  const crater = new THREE.Mesh(
+    new THREE.CircleGeometry(0.02 + Math.random() * 0.08, 6),
+    new THREE.MeshBasicMaterial({ color: 0xDDCC88, transparent: true, opacity: 0.15 })
+  );
+  crater.position.set(Math.cos(a) * r, Math.cos(theta) * 0.85, Math.sin(a) * r);
+  crater.lookAt(0, 0, 0);
+  moonGroup.add(crater);
+}
+
+moonGroup.position.set(10, 10, -18);
+scene.add(moonGroup);
+
+// Moon glow rings
+for (let i = 0; i < 3; i++) {
+  const glowRing = new THREE.Mesh(
+    new THREE.RingGeometry(0.8 + i * 0.3, 1.2 + i * 0.5, 32),
+    new THREE.MeshBasicMaterial({
+      color: 0xCCAA88,
+      transparent: true,
+      opacity: 0.02 - i * 0.005,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending
+    })
+  );
+  glowRing.position.copy(moonGroup.position);
+  glowRing.position.y += i * 0.1;
+  glowRing.lookAt(0, 0, 0);
+  scene.add(glowRing);
+}
+
+// ── STARS ──
+const starsGeom = new THREE.BufferGeometry();
+const starCount = 2500;
+const starPos = new Float32Array(starCount * 3);
+const starCol = new Float32Array(starCount * 3);
+for (let i = 0; i < starCount; i++) {
+  const theta = Math.acos(2 * Math.random() - 1);
+  const phi = Math.random() * Math.PI * 2;
+  const r = 30 + Math.random() * 17; // inside sky dome (radius 50)
+  starPos[i*3] = r * Math.sin(theta) * Math.cos(phi);
+  starPos[i*3+1] = Math.abs(r * Math.cos(theta));
+  starPos[i*3+2] = r * Math.sin(theta) * Math.sin(phi);
+  
+  const temp = 0.8 + Math.random() * 0.2;
+  starCol[i*3] = temp;
+  starCol[i*3+1] = temp * (0.8 + Math.random() * 0.2);
+  starCol[i*3+2] = temp * (0.6 + Math.random() * 0.4);
+}
+starsGeom.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+starsGeom.setAttribute('color', new THREE.BufferAttribute(starCol, 3));
+const starMat = new THREE.PointsMaterial({
+  size: 0.15,
+  vertexColors: true,
+  transparent: true,
+  opacity: 0.9,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false
+});
+const stars = new THREE.Points(starsGeom, starMat);
+scene.add(stars);
+
+// ── PYRAMID ──
+function createPyramid() {
+  const group = new THREE.Group();
+  const stoneMat = new THREE.MeshStandardMaterial({
+    color: 0xB8860B,
+    roughness: 0.9,
+    metalness: 0.1
+  });
+  const stoneMat2 = new THREE.MeshStandardMaterial({
+    color: 0xC4954F,
+    roughness: 0.85,
+    metalness: 0.1
+  });
+  
+  for (let i = 0; i < 5; i++) {
+    const s = 3.0 - i * 0.5;
+    const h = 0.2;
+    const layer = new THREE.Mesh(
+      new THREE.BoxGeometry(s, h, s),
+      i % 2 === 0 ? stoneMat : stoneMat2
+    );
+    layer.position.y = i * 0.22 - 0.35;
+    layer.castShadow = true;
+    group.add(layer);
+  }
+  
+  // Capstone
+  const cap = new THREE.Mesh(
+    new THREE.ConeGeometry(0.3, 0.3, 6),
+    new THREE.MeshStandardMaterial({ color: 0xFFD700, roughness: 0.2, metalness: 0.9, emissive: 0xFFD700, emissiveIntensity: 0.1 })
+  );
+  cap.position.y = 0.8;
+  cap.castShadow = true;
+  group.add(cap);
+  
+  // Glow around capstone
+  const glowGeom = new THREE.SphereGeometry(0.5, 8, 8);
+  const glowMat2 = new THREE.MeshBasicMaterial({
+    color: 0xFFD700,
+    transparent: true,
+    opacity: 0.06,
+    blending: THREE.AdditiveBlending
+  });
+  const capGlow = new THREE.Mesh(glowGeom, glowMat2);
+  capGlow.position.y = 0.8;
+  group.add(capGlow);
+  
+  group.position.y = -0.1;
+  return group;
+}
+
+const pyramid = createPyramid();
+// Offset to the left side of the inner plaza (like the board image)
+pyramid.position.set(-3.0, 0, -0.3);
+pyramid.scale.set(0.95, 1.1, 0.95);
+scene.add(pyramid);
+
+// ── PALM TREES ──
+function createPalm(x, z, sc) {
+  const group = new THREE.Group();
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6D4C2A, roughness: 0.95 });
+  const barkMat  = new THREE.MeshStandardMaterial({ color: 0x4E3418, roughness: 1 });
+  const frondMat  = new THREE.MeshStandardMaterial({ color: 0x3F7A32, roughness: 0.85, side: THREE.DoubleSide });
+  const frondMat2 = new THREE.MeshStandardMaterial({ color: 0x2E6E28, roughness: 0.85, side: THREE.DoubleSide });
+
+  // Trunk — single slightly curved tapered cylinder
+  const trunkH = 2.6 * sc;
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.09 * sc, 0.16 * sc, trunkH, 10),
+    trunkMat
+  );
+  trunk.position.y = trunkH / 2 - 0.4;
+  const tilt = (Math.random() - 0.5) * 0.18;
+  trunk.rotation.z = tilt;
+  trunk.castShadow = true;
+  group.add(trunk);
+
+  // Bark rings (horizontal bands)
+  const ringCount = 8;
+  for (let i = 0; i < ringCount; i++) {
+    const t = i / ringCount;
+    const r = (0.16 - t * 0.07) * sc + 0.005;
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(r, 0.02 * sc, 4, 10),
+      barkMat
+    );
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = -0.4 + t * trunkH + 0.1;
+    ring.position.x = tilt * (ring.position.y + 0.4);
+    group.add(ring);
+  }
+
+  const topY = trunkH - 0.4;
+  const topX = tilt * trunkH;
+
+  // Fronds — drooping leaf fronds from top
+  const frondCount = 9;
+  for (let i = 0; i < frondCount; i++) {
+    const az = (i / frondCount) * Math.PI * 2 + Math.random() * 0.12;
+    const frondLen = 1.1 * sc + Math.random() * 0.25 * sc;
+    const mat = i % 2 === 0 ? frondMat : frondMat2;
+    const frond = new THREE.Group();
+    // Build frond from 5 segments that curve downward as they extend
+    const segs = 5;
+    for (let j = 0; j < segs; j++) {
+      const t = j / segs;
+      const segL = frondLen / segs;
+      const width = (0.22 - t * 0.14) * sc;
+      const blade = new THREE.Mesh(
+        new THREE.BoxGeometry(segL, 0.025 * sc, width),
+        mat
+      );
+      blade.position.x = (j + 0.5) * segL;
+      // parabolic droop
+      blade.position.y = -Math.pow(t + 0.1, 2) * 0.6 * sc;
+      blade.rotation.z = -t * 0.65;
+      blade.castShadow = true;
+      frond.add(blade);
+      // leaflet spikes (optional: small flaps perpendicular)
+      if (j < segs - 1) {
+        for (let k = -1; k <= 1; k += 2) {
+          const leaflet = new THREE.Mesh(
+            new THREE.BoxGeometry(segL * 0.9, 0.01 * sc, 0.1 * sc),
+            mat
+          );
+          leaflet.position.x = (j + 0.5) * segL;
+          leaflet.position.y = blade.position.y;
+          leaflet.position.z = k * (width * 0.5 + 0.05 * sc);
+          leaflet.rotation.z = -t * 0.65;
+          leaflet.rotation.x = k * 0.25;
+          frond.add(leaflet);
+        }
+      }
+    }
+    frond.position.set(topX, topY, 0);
+    frond.rotation.order = 'YXZ';
+    frond.rotation.y = az;
+    frond.rotation.z = 0.12; // lifted base, natural upward then droop
+    group.add(frond);
+  }
+
+  // Coconut cluster at crown
+  const coconutMat = new THREE.MeshStandardMaterial({ color: 0x3E2723, roughness: 0.9 });
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2 + Math.random() * 0.3;
+    const coconut = new THREE.Mesh(
+      new THREE.SphereGeometry(0.07 * sc, 8, 6),
+      coconutMat
+    );
+    coconut.position.set(topX + Math.cos(a) * 0.1 * sc, topY - 0.05, Math.sin(a) * 0.1 * sc);
+    coconut.castShadow = true;
+    group.add(coconut);
+  }
+
+  group.position.set(x, -0.4, z);
+  return group;
+}
+
+const palmObjects = []; // tracked for optional GLB swap below
+[
+  [-6.5, -5], [6.5, -5], [-7, 4], [7, 4],
+  [-5, -6.5], [5, -6.5], [-7.5, 0.5], [7.5, 0.5],
+  [-3.5, -7], [3.5, -7], [0, -8], [0, 7.5]
+].forEach(([x, z]) => {
+  const sc = 0.75 + Math.random() * 0.3;
+  const palm = createPalm(x, z, sc);
+  palm.userData.sc = sc;
+  scene.add(palm);
+  palmObjects.push(palm);
+});
+
+// ── TRACK (oval, numbered tiles like the real Camel Up board) ──
+const TRACK_A = 6.0;   // semi-major X
+const TRACK_B = 4.6;   // semi-minor Z
+const TRACK_TILE_W = 0.95;  // tile length along tangent
+const TRACK_TILE_D = 0.7;   // tile depth (radial)
+
+// Parametric ellipse helpers (module-level so camel logic uses them)
+function trackTileAngle(i){ return (i / 16) * Math.PI * 2 - Math.PI / 2; }
+function trackTilePos(i){
+  const a = trackTileAngle(i);
+  return { x: Math.cos(a) * TRACK_A, z: Math.sin(a) * TRACK_B };
+}
+function trackTileFacing(i){
+  const p1 = trackTilePos(i);
+  const p2 = trackTilePos((i + 1) % 16);
+  return Math.atan2(-(p2.z - p1.z), p2.x - p1.x);
+}
+
+// ─── BIG BOARD TEXTURE ───
+// Paint the entire game board onto a single high-resolution canvas (parchment + oval track + numbered tile wedges + arabic ornaments + paved inner area).
+// World→canvas mapping: a single point (x,z) in world coords maps to (cx + x*s, cy + z*s).
+function makeBoardTexture() {
+  const W = 2560, H = 1920; // high-res for crispness
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+
+  const margin = 0.7;
+  const boardW = 2 * (TRACK_A + margin);
+  const boardH = 2 * (TRACK_B + margin);
+  const s = Math.min(W / boardW, H / boardH);
+  const cx = W / 2, cy = H / 2;
+  const P = (x, z) => [cx + x * s, cy + z * s];
+
+  // ── 1. Outer parchment background ──
+  const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * 0.6);
+  bgGrad.addColorStop(0, '#E5C58A');
+  bgGrad.addColorStop(0.6, '#D2A861');
+  bgGrad.addColorStop(1, '#A07835');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // sand grain noise for entire canvas
+  const noiseImg = ctx.getImageData(0, 0, W, H);
+  const nd = noiseImg.data;
+  for (let i = 0; i < nd.length; i += 4) {
+    const n = (Math.random() - 0.5) * 22;
+    nd[i]     = Math.max(0, Math.min(255, nd[i]     + n));
+    nd[i + 1] = Math.max(0, Math.min(255, nd[i + 1] + n * 0.8));
+    nd[i + 2] = Math.max(0, Math.min(255, nd[i + 2] + n * 0.5));
+  }
+  ctx.putImageData(noiseImg, 0, 0);
+
+  // sparse darker pebble specks
+  for (let i = 0; i < 1200; i++) {
+    ctx.fillStyle = `rgba(90,60,30,${0.15 + Math.random() * 0.25})`;
+    ctx.beginPath();
+    ctx.arc(Math.random() * W, Math.random() * H, 1 + Math.random() * 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // ── 2. Outer dark stone rim (ellipse) ──
+  function ovalPath(scaleA, scaleB) {
+    ctx.beginPath();
+    for (let i = 0; i <= 360; i++) {
+      const a = i * Math.PI / 180;
+      const [px, py] = P(Math.cos(a) * scaleA, Math.sin(a) * scaleB);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+  }
+
+  // Big outer dark frame (stones + ornament band)
+  ovalPath(TRACK_A + 0.55, TRACK_B + 0.55);
+  ctx.fillStyle = '#5C3A1B';
+  ctx.fill();
+
+  // inner light cream ring
+  ovalPath(TRACK_A + 0.42, TRACK_B + 0.42);
+  ctx.fillStyle = '#B68240';
+  ctx.fill();
+
+  // arabic geometric ornament — small star pattern around outer band
+  const ornCount = 48;
+  for (let i = 0; i < ornCount; i++) {
+    const a = (i / ornCount) * Math.PI * 2;
+    const [ox, oy] = P(Math.cos(a) * (TRACK_A + 0.48), Math.sin(a) * (TRACK_B + 0.48));
+    ctx.save();
+    ctx.translate(ox, oy);
+    ctx.rotate(a);
+    ctx.fillStyle = '#F2D58A';
+    // 8-point star
+    const r1 = 8, r2 = 14;
+    ctx.beginPath();
+    for (let k = 0; k < 16; k++) {
+      const r = k % 2 === 0 ? r2 : r1;
+      const ang = (k / 16) * Math.PI * 2;
+      const px = Math.cos(ang) * r, py = Math.sin(ang) * r;
+      if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#5C3A1B';
+    ctx.beginPath();
+    ctx.arc(0, 0, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // outer/inner border lines
+  ctx.strokeStyle = '#3D2510';
+  ctx.lineWidth = 5;
+  ovalPath(TRACK_A + 0.55, TRACK_B + 0.55); ctx.stroke();
+  ovalPath(TRACK_A + 0.42, TRACK_B + 0.42); ctx.stroke();
+
+  // ── 3. The 16 tile band (inside the ornament ring) ──
+  const tileOuter = 0.42;
+  const tileInner = -0.42;
+
+  // Paint each tile wedge directly:
+  for (let i = 0; i < 16; i++) {
+    const segHalf = Math.PI / 16;
+    const aMid = trackTileAngle(i);
+    const a0 = aMid - segHalf;
+    const a1 = aMid + segHalf;
+
+    // Build wedge path
+    ctx.beginPath();
+    const STEP = 24;
+    for (let k = 0; k <= STEP; k++) {
+      const a = a0 + (k / STEP) * (a1 - a0);
+      const [px, py] = P(Math.cos(a) * (TRACK_A + tileInner), Math.sin(a) * (TRACK_B + tileInner));
+      if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    for (let k = STEP; k >= 0; k--) {
+      const a = a0 + (k / STEP) * (a1 - a0);
+      const [px, py] = P(Math.cos(a) * (TRACK_A + tileOuter), Math.sin(a) * (TRACK_B + tileOuter));
+      ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+
+    // Alternating sandy fill for tiles (light/dark)
+    const tileGrad = ctx.createLinearGradient(...P(Math.cos(aMid) * (TRACK_A + tileInner), Math.sin(aMid) * (TRACK_B + tileInner)),
+                                              ...P(Math.cos(aMid) * (TRACK_A + tileOuter), Math.sin(aMid) * (TRACK_B + tileOuter)));
+    if (i % 2 === 0) {
+      tileGrad.addColorStop(0, '#F5DA8E'); tileGrad.addColorStop(1, '#D9B265');
+    } else {
+      tileGrad.addColorStop(0, '#E9C779'); tileGrad.addColorStop(1, '#C99B52');
+    }
+    ctx.fillStyle = tileGrad;
+    ctx.fill();
+
+    // Special start/finish color tint
+    if (i === 0) {
+      ctx.fillStyle = 'rgba(76,175,80,0.30)'; ctx.fill();
+    } else if (i === 15) {
+      ctx.fillStyle = 'rgba(255,82,82,0.30)'; ctx.fill();
+    }
+
+    // Stroke separators
+    ctx.strokeStyle = '#3D2510';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    // Inner pebble specks on tile
+    ctx.save();
+    ctx.clip();
+    for (let k = 0; k < 18; k++) {
+      ctx.fillStyle = `rgba(90,60,30,${0.25 + Math.random() * 0.25})`;
+      const ar = a0 + Math.random() * (a1 - a0);
+      const rrA = TRACK_A + tileInner + Math.random() * (tileOuter - tileInner);
+      const rrB = TRACK_B + tileInner + Math.random() * (tileOuter - tileInner);
+      const [px, py] = P(Math.cos(ar) * rrA, Math.sin(ar) * rrB);
+      ctx.beginPath();
+      ctx.arc(px, py, 2 + Math.random() * 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // Number label — rotated to tangent
+    const [nx, ny] = P(Math.cos(aMid) * TRACK_A, Math.sin(aMid) * TRACK_B);
+    ctx.save();
+    ctx.translate(nx, ny);
+    ctx.rotate(aMid + Math.PI / 2);
+    ctx.font = 'bold 92px "Georgia", "Times New Roman", serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 8;
+    ctx.strokeStyle = '#FFE9B0';
+    ctx.strokeText(String(i + 1), 0, 0);
+    ctx.fillStyle = '#3A2008';
+    ctx.fillText(String(i + 1), 0, 0);
+    ctx.restore();
+  }
+
+  // ── 4. Inner paved plaza (oval, lighter) ──
+  ovalPath(TRACK_A + tileInner - 0.02, TRACK_B + tileInner - 0.02);
+  ctx.fillStyle = '#D9B57A';
+  ctx.fill();
+  ctx.strokeStyle = '#3D2510';
+  ctx.lineWidth = 5;
+  ctx.stroke();
+
+  // Flagstone cracks inside plaza
+  ctx.save();
+  ovalPath(TRACK_A + tileInner - 0.04, TRACK_B + tileInner - 0.04);
+  ctx.clip();
+  ctx.strokeStyle = 'rgba(90,55,25,0.45)';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 60; i++) {
+    ctx.beginPath();
+    let x = cx + (Math.random() - 0.5) * boardW * s * 0.7;
+    let y = cy + (Math.random() - 0.5) * boardH * s * 0.6;
+    ctx.moveTo(x, y);
+    const segs = 3 + Math.floor(Math.random() * 3);
+    for (let k = 0; k < segs; k++) {
+      x += (Math.random() - 0.5) * 90;
+      y += (Math.random() - 0.5) * 90;
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Faint scarab/sun ornament in inner plaza (subtle decoration)
+  ctx.save();
+  ctx.globalAlpha = 0.18;
+  ctx.translate(...P(0.4, 0.1));
+  ctx.fillStyle = '#7A4F1B';
+  // sun rays
+  const rays = 16;
+  for (let i = 0; i < rays; i++) {
+    const a = (i / rays) * Math.PI * 2;
+    ctx.save();
+    ctx.rotate(a);
+    ctx.beginPath();
+    ctx.moveTo(40, -8);
+    ctx.lineTo(120, 0);
+    ctx.lineTo(40, 8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, 50, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.anisotropy = 8;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function createTrack() {
+  const group = new THREE.Group();
+
+  // Single flat board mesh — replaces 32 tile/edge meshes + plaza + rim.
+  const margin = 0.7;
+  const boardW = 2 * (TRACK_A + margin);
+  const boardH = 2 * (TRACK_B + margin);
+  const boardGeom = new THREE.PlaneGeometry(boardW, boardH);
+  boardGeom.rotateX(-Math.PI / 2);
+  const boardMat = new THREE.MeshStandardMaterial({
+    map: makeBoardTexture(),
+    roughness: 0.92
+  });
+  const board = new THREE.Mesh(boardGeom, boardMat);
+  board.position.y = -0.39;
+  board.receiveShadow = true;
+  board.userData.isBoard = true; // tag for AI illustration override
+  group.add(board);
+
+  // 3D start/finish flag poles (subtle vertical accent on top of the painted board)
+  [[0, 0x4CAF50], [15, 0xFF5252]].forEach(([tIdx, color]) => {
+    const pos = trackTilePos(tIdx);
+    const ang = trackTileAngle(tIdx);
+    const outDir = { x: Math.cos(ang) * 0.6, z: Math.sin(ang) * 0.6 };
+    const pole = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.04, 0.05, 0.8, 6),
+      new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.25 })
+    );
+    pole.position.set(pos.x + outDir.x, 0.0, pos.z + outDir.z);
+    pole.castShadow = true;
+    group.add(pole);
+    const flag = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.3, 0.18),
+      new THREE.MeshStandardMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.95 })
+    );
+    flag.position.set(pos.x + outDir.x + 0.15, 0.28, pos.z + outDir.z);
+    flag.rotation.y = trackTileFacing(tIdx) + Math.PI / 2;
+    group.add(flag);
+  });
+
+  return group;
+}
+
+const track = createTrack();
+scene.add(track);
+
+// ── INNER ELEMENTS: card altar (central), blue pavilions row, dice platform ──
+function createCardAltar(x, z) {
+  const g = new THREE.Group();
+  // stone base
+  const base = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.55, 0.62, 0.12, 18),
+    new THREE.MeshStandardMaterial({ color: 0x8B6E3E, roughness: 0.8 })
+  );
+  base.position.y = -0.34;
+  base.receiveShadow = true;
+  g.add(base);
+  // ring trim
+  const trim = new THREE.Mesh(
+    new THREE.TorusGeometry(0.56, 0.025, 6, 20),
+    new THREE.MeshStandardMaterial({ color: 0xFFD166, metalness: 0.7, roughness: 0.25, emissive: 0xFFA000, emissiveIntensity: 0.2 })
+  );
+  trim.rotation.x = Math.PI / 2;
+  trim.position.y = -0.28;
+  g.add(trim);
+  // card stacks (5 colored stacks)
+  const cardColors = [0x4FC3F7, 0x66BB6A, 0xEF5350, 0xFDD835, 0xFAFAFA];
+  for (let i = 0; i < 5; i++) {
+    const stackH = 3 + Math.floor(Math.random() * 2);
+    const a = (i / 5) * Math.PI * 2;
+    for (let j = 0; j < stackH; j++) {
+      const card = new THREE.Mesh(
+        new THREE.BoxGeometry(0.22, 0.015, 0.16),
+        new THREE.MeshStandardMaterial({ color: cardColors[i], roughness: 0.55 })
+      );
+      card.position.set(Math.cos(a) * 0.3, -0.27 + j * 0.017, Math.sin(a) * 0.3);
+      card.rotation.y = a + (Math.random() - 0.5) * 0.2;
+      g.add(card);
+    }
+  }
+  // central scarab/scroll icon
+  const icon = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.1, 0.1, 0.015, 20),
+    new THREE.MeshStandardMaterial({ color: 0xFFD700, metalness: 0.7, roughness: 0.3, emissive: 0xFFD700, emissiveIntensity: 0.3 })
+  );
+  icon.position.y = -0.26;
+  g.add(icon);
+  g.position.set(x, 0, z);
+  return g;
+}
+
+// Blue "sultan's pavilion" — pointy tent like the image
+function createPavilion(x, z, rotY = 0, scale = 0.75) {
+  const g = new THREE.Group();
+  const blueMat = new THREE.MeshStandardMaterial({ color: 0x2F6FC4, roughness: 0.75, side: THREE.DoubleSide });
+  const blueDark = new THREE.MeshStandardMaterial({ color: 0x1B4A8A, roughness: 0.8 });
+  const goldMat = new THREE.MeshStandardMaterial({ color: 0xFFD166, metalness: 0.75, roughness: 0.25, emissive: 0xFFD166, emissiveIntensity: 0.3 });
+  // 4-sided pyramid roof
+  const roofH = 0.95 * scale;
+  const roofR = 0.38 * scale;
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(roofR, roofH, 4), blueMat);
+  roof.position.y = roofH / 2 + 0.05 * scale;
+  roof.rotation.y = Math.PI / 4; // align flat faces to front/back
+  roof.castShadow = true;
+  g.add(roof);
+  // base cube (tent body)
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(roofR * 1.5, 0.1 * scale, roofR * 1.5),
+    blueDark
+  );
+  body.position.y = 0.05 * scale;
+  g.add(body);
+  // curly upward tip
+  const tip = new THREE.Mesh(
+    new THREE.ConeGeometry(0.04 * scale, 0.18 * scale, 6),
+    goldMat
+  );
+  tip.position.y = roofH + 0.12 * scale;
+  g.add(tip);
+  // gold ball
+  const ball = new THREE.Mesh(
+    new THREE.SphereGeometry(0.05 * scale, 8, 6),
+    goldMat
+  );
+  ball.position.y = roofH + 0.04 * scale;
+  g.add(ball);
+  // pennant flag
+  const flag = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.18 * scale, 0.1 * scale),
+    new THREE.MeshStandardMaterial({ color: 0xEEDD88, side: THREE.DoubleSide })
+  );
+  flag.position.set(0.1 * scale, roofH + 0.18 * scale, 0);
+  flag.rotation.y = Math.PI / 2;
+  g.add(flag);
+  g.position.set(x, -0.4, z);
+  g.rotation.y = rotY;
+  return g;
+}
+
+// Place a row of 4 blue pavilions on the right-inner area (like the image)
+[
+  { x: -0.8, z: 2.0 },
+  { x:  0.6, z: 2.3 },
+  { x:  2.0, z: 2.3 },
+  { x:  3.4, z: 2.0 }
+].forEach(p => scene.add(createPavilion(p.x, p.z, (Math.random() - 0.5) * 0.2)));
+
+// Card altar — center of inner plaza (slightly toward front)
+scene.add(createCardAltar(0.5, 0.2));
+
+// ── MIDDLE EASTERN SCENERY ──
+// Bedouin tent — striped fabric cone / pyramid
+function createTent(x, z, rot, scale = 1, color1 = 0xB85C38, color2 = 0xE8C088) {
+  const g = new THREE.Group();
+  const fabricA = new THREE.MeshStandardMaterial({ color: color1, roughness: 0.85, side: THREE.DoubleSide });
+  const fabricB = new THREE.MeshStandardMaterial({ color: color2, roughness: 0.85, side: THREE.DoubleSide });
+  // main tent — segmented cone with alternating stripes
+  const segments = 10;
+  const tentH = 1.4 * scale;
+  const tentR = 1.0 * scale;
+  for (let i = 0; i < segments; i++) {
+    const a0 = (i / segments) * Math.PI * 2;
+    const a1 = ((i + 1) / segments) * Math.PI * 2;
+    const geom = new THREE.BufferGeometry();
+    const v = new Float32Array([
+      0, tentH, 0,
+      Math.cos(a0) * tentR, 0, Math.sin(a0) * tentR,
+      Math.cos(a1) * tentR, 0, Math.sin(a1) * tentR,
+    ]);
+    geom.setAttribute('position', new THREE.BufferAttribute(v, 3));
+    geom.computeVertexNormals();
+    const m = new THREE.Mesh(geom, i % 2 === 0 ? fabricA : fabricB);
+    m.castShadow = true;
+    g.add(m);
+  }
+  // tent pole tip
+  const topDecor = new THREE.Mesh(
+    new THREE.SphereGeometry(0.08 * scale, 8, 6),
+    new THREE.MeshStandardMaterial({ color: 0xFFD700, metalness: 0.7, roughness: 0.3, emissive: 0xFFD700, emissiveIntensity: 0.2 })
+  );
+  topDecor.position.y = tentH + 0.05;
+  g.add(topDecor);
+  // entrance — dark trapezoid cutout (use a dark triangle in front)
+  const entrance = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.5 * scale, 0.7 * scale),
+    new THREE.MeshBasicMaterial({ color: 0x1a0808, side: THREE.DoubleSide })
+  );
+  entrance.position.set(Math.cos(0) * (tentR - 0.01), 0.35 * scale, Math.sin(0) * (tentR - 0.01));
+  entrance.lookAt(0, 0.35 * scale, 0);
+  g.add(entrance);
+  // guy ropes — 4 cords
+  const ropeMat = new THREE.MeshStandardMaterial({ color: 0x6D4C2A });
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    const rope = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.01, 0.01, 0.9 * scale, 4),
+      ropeMat
+    );
+    const outR = tentR + 0.3 * scale;
+    rope.position.set(Math.cos(a) * outR * 0.6, 0.3 * scale, Math.sin(a) * outR * 0.6);
+    rope.rotation.x = Math.cos(a) * 0.35;
+    rope.rotation.z = -Math.sin(a) * 0.35;
+    g.add(rope);
+  }
+  g.position.set(x, -0.4, z);
+  g.rotation.y = rot;
+  return g;
+}
+
+// Domed building (mosque-like)
+function createDomedBuilding(x, z, rot, scale = 1) {
+  const g = new THREE.Group();
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0xE8C998, roughness: 0.8 });
+  const wallMat2 = new THREE.MeshStandardMaterial({ color: 0xD4B180, roughness: 0.85 });
+  const domeMat = new THREE.MeshStandardMaterial({ color: 0xFFD166, roughness: 0.25, metalness: 0.75, emissive: 0xFFA000, emissiveIntensity: 0.12 });
+  const trimMat = new THREE.MeshStandardMaterial({ color: 0x8B6E3E, roughness: 0.7 });
+
+  // Cubic base
+  const baseH = 1.2 * scale;
+  const baseW = 1.6 * scale;
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(baseW, baseH, baseW),
+    wallMat
+  );
+  base.position.y = baseH / 2 - 0.4;
+  base.castShadow = true; base.receiveShadow = true;
+  g.add(base);
+
+  // Trim band
+  const trim = new THREE.Mesh(
+    new THREE.BoxGeometry(baseW + 0.04, 0.12 * scale, baseW + 0.04),
+    trimMat
+  );
+  trim.position.y = baseH - 0.45;
+  g.add(trim);
+
+  // Archway entrance
+  const archW = 0.3 * scale;
+  const archH = 0.55 * scale;
+  const arch = new THREE.Mesh(
+    new THREE.PlaneGeometry(archW, archH),
+    new THREE.MeshBasicMaterial({ color: 0x2a1505, side: THREE.DoubleSide })
+  );
+  arch.position.set(0, archH / 2 - 0.38, baseW / 2 + 0.01);
+  g.add(arch);
+  const archTop = new THREE.Mesh(
+    new THREE.CircleGeometry(archW / 2, 12, 0, Math.PI),
+    new THREE.MeshBasicMaterial({ color: 0x2a1505 })
+  );
+  archTop.position.set(0, archH - 0.38, baseW / 2 + 0.01);
+  g.add(archTop);
+
+  // Small windows
+  for (let s = -1; s <= 1; s += 2) {
+    for (let side = 0; side < 2; side++) {
+      const w = new THREE.Mesh(
+        new THREE.CircleGeometry(0.08 * scale, 12),
+        new THREE.MeshStandardMaterial({ color: 0xFFB74D, emissive: 0xFFB74D, emissiveIntensity: 0.6 })
+      );
+      const sgn = side === 0 ? 1 : -1;
+      w.position.set(s * 0.4 * scale, 0.15 * scale, sgn * (baseW / 2 + 0.01));
+      if (sgn < 0) w.rotation.y = Math.PI;
+      g.add(w);
+    }
+  }
+
+  // Dome
+  const domeR = baseW * 0.55;
+  const dome = new THREE.Mesh(
+    new THREE.SphereGeometry(domeR, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+    domeMat
+  );
+  dome.position.y = baseH - 0.4;
+  dome.castShadow = true;
+  g.add(dome);
+
+  // Dome finial
+  const finial = new THREE.Mesh(
+    new THREE.ConeGeometry(0.06 * scale, 0.25 * scale, 6),
+    domeMat
+  );
+  finial.position.y = baseH - 0.4 + domeR + 0.12 * scale;
+  g.add(finial);
+
+  // Minaret (tall thin tower)
+  const minH = 2.0 * scale;
+  const minaret = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.12 * scale, 0.14 * scale, minH, 10),
+    wallMat2
+  );
+  minaret.position.set(baseW * 0.42, minH / 2 - 0.4, baseW * 0.42);
+  minaret.castShadow = true;
+  g.add(minaret);
+  // minaret balcony
+  const balcony = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.22 * scale, 0.22 * scale, 0.08 * scale, 10),
+    trimMat
+  );
+  balcony.position.set(baseW * 0.42, minH - 0.6, baseW * 0.42);
+  g.add(balcony);
+  // minaret dome cap
+  const minCap = new THREE.Mesh(
+    new THREE.SphereGeometry(0.15 * scale, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+    domeMat
+  );
+  minCap.position.set(baseW * 0.42, minH - 0.4, baseW * 0.42);
+  g.add(minCap);
+  const minFinial = new THREE.Mesh(
+    new THREE.ConeGeometry(0.04 * scale, 0.18 * scale, 6),
+    domeMat
+  );
+  minFinial.position.set(baseW * 0.42, minH - 0.25, baseW * 0.42);
+  g.add(minFinial);
+
+  g.position.set(x, 0, z);
+  g.rotation.y = rot;
+  return g;
+}
+
+// Stone archway gate
+function createArchway(x, z, rot, scale = 1) {
+  const g = new THREE.Group();
+  const stoneMat = new THREE.MeshStandardMaterial({ color: 0xC4A06B, roughness: 0.85 });
+  const stoneMat2 = new THREE.MeshStandardMaterial({ color: 0xA68555, roughness: 0.9 });
+  const pillarH = 1.6 * scale;
+  const pillarW = 0.35 * scale;
+  const archW = 1.6 * scale;
+
+  // Two pillars
+  for (let s = -1; s <= 1; s += 2) {
+    const pillar = new THREE.Mesh(
+      new THREE.BoxGeometry(pillarW, pillarH, pillarW),
+      stoneMat
+    );
+    pillar.position.set(s * archW / 2, pillarH / 2 - 0.4, 0);
+    pillar.castShadow = true;
+    g.add(pillar);
+    // capital
+    const cap = new THREE.Mesh(
+      new THREE.BoxGeometry(pillarW * 1.4, 0.15 * scale, pillarW * 1.4),
+      stoneMat2
+    );
+    cap.position.set(s * archW / 2, pillarH - 0.45, 0);
+    g.add(cap);
+  }
+
+  // Top arch — horizontal beam
+  const top = new THREE.Mesh(
+    new THREE.BoxGeometry(archW + pillarW, 0.25 * scale, pillarW),
+    stoneMat
+  );
+  top.position.y = pillarH - 0.28;
+  g.add(top);
+
+  // Curved arch inner (half torus)
+  const innerArch = new THREE.Mesh(
+    new THREE.TorusGeometry(archW * 0.45, 0.1 * scale, 8, 16, Math.PI),
+    stoneMat2
+  );
+  innerArch.position.y = pillarH - 0.4;
+  innerArch.rotation.z = 0;
+  g.add(innerArch);
+
+  // Decorative crest on top
+  const crest = new THREE.Mesh(
+    new THREE.BoxGeometry(0.4 * scale, 0.3 * scale, pillarW),
+    stoneMat2
+  );
+  crest.position.y = pillarH - 0.05;
+  g.add(crest);
+  // crescent moon ornament
+  const crescent = new THREE.Mesh(
+    new THREE.TorusGeometry(0.1 * scale, 0.03 * scale, 6, 10, Math.PI * 1.3),
+    new THREE.MeshStandardMaterial({ color: 0xFFD700, metalness: 0.8, roughness: 0.2, emissive: 0xFFD700, emissiveIntensity: 0.3 })
+  );
+  crescent.position.y = pillarH + 0.15;
+  crescent.rotation.z = -Math.PI * 0.35;
+  g.add(crescent);
+
+  g.position.set(x, 0, z);
+  g.rotation.y = rot;
+  return g;
+}
+
+// Torch / brazier — flickering point light
+const torchLights = [];
+function createTorch(x, z) {
+  const g = new THREE.Group();
+  const stoneMat = new THREE.MeshStandardMaterial({ color: 0x6D4C2A, roughness: 0.9 });
+  // pole
+  const pole = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.04, 0.05, 1.1, 6),
+    stoneMat
+  );
+  pole.position.y = 0.15;
+  pole.castShadow = true;
+  g.add(pole);
+  // bowl
+  const bowl = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.15, 0.08, 0.12, 10),
+    new THREE.MeshStandardMaterial({ color: 0x3E2723, roughness: 0.9 })
+  );
+  bowl.position.y = 0.8;
+  g.add(bowl);
+  // flame
+  const flame = new THREE.Mesh(
+    new THREE.ConeGeometry(0.12, 0.35, 8),
+    new THREE.MeshBasicMaterial({ color: 0xFFB347, transparent: true, opacity: 0.9 })
+  );
+  flame.position.y = 1.0;
+  g.add(flame);
+  const flameCore = new THREE.Mesh(
+    new THREE.ConeGeometry(0.06, 0.25, 8),
+    new THREE.MeshBasicMaterial({ color: 0xFFF3A0, transparent: true, opacity: 0.95 })
+  );
+  flameCore.position.y = 0.98;
+  g.add(flameCore);
+  // glow sphere
+  const glow = new THREE.Mesh(
+    new THREE.SphereGeometry(0.3, 12, 10),
+    new THREE.MeshBasicMaterial({ color: 0xFF8844, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending })
+  );
+  glow.position.y = 1.0;
+  g.add(glow);
+  // point light for warm illumination
+  const light = new THREE.PointLight(0xFFA55A, 1.2, 6, 2);
+  light.position.y = 1.0;
+  g.add(light);
+  torchLights.push({ light, flame, flameCore, glow, baseI: 1.2 });
+
+  g.position.set(x, -0.4, z);
+  return g;
+}
+
+// Simple humanoid spectator wearing robe + turban/kufiya
+function createSpectator(x, z, rot, palette = 'tan') {
+  const g = new THREE.Group();
+  const palettes = {
+    tan:   { robe: 0xD8B89A, accent: 0x8B5A2B, skin: 0xC68863 },
+    white: { robe: 0xF2E8D0, accent: 0x5D4037, skin: 0xD4A373 },
+    blue:  { robe: 0x3E5C78, accent: 0xFFD700, skin: 0xC68863 },
+    red:   { robe: 0xA34D3E, accent: 0xEEDD88, skin: 0xC68863 },
+    green: { robe: 0x4A6E3F, accent: 0xF0E0B0, skin: 0xC68863 }
+  };
+  const p = palettes[palette] || palettes.tan;
+  const robeMat   = new THREE.MeshStandardMaterial({ color: p.robe, roughness: 0.85 });
+  const accentMat = new THREE.MeshStandardMaterial({ color: p.accent, roughness: 0.8 });
+  const skinMat   = new THREE.MeshStandardMaterial({ color: p.skin, roughness: 0.75 });
+  const darkMat   = new THREE.MeshStandardMaterial({ color: 0x2A1B10, roughness: 0.9 });
+
+  // Robe body — tapered cylinder (wider at bottom)
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.12, 0.22, 0.65, 10),
+    robeMat
+  );
+  body.position.y = 0.325;
+  body.castShadow = true;
+  g.add(body);
+
+  // Belt/sash
+  const sash = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.15, 0.15, 0.08, 10),
+    accentMat
+  );
+  sash.position.y = 0.45;
+  g.add(sash);
+
+  // Shoulders / shawl
+  const shawl = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.18, 0.14, 0.12, 10),
+    accentMat
+  );
+  shawl.position.y = 0.68;
+  g.add(shawl);
+
+  // Head
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.09, 12, 10),
+    skinMat
+  );
+  head.position.y = 0.82;
+  head.castShadow = true;
+  g.add(head);
+
+  // Turban / kufiya headwrap
+  const turban = new THREE.Mesh(
+    new THREE.SphereGeometry(0.11, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.55),
+    accentMat
+  );
+  turban.position.y = 0.87;
+  g.add(turban);
+  // headband
+  const band = new THREE.Mesh(
+    new THREE.TorusGeometry(0.1, 0.015, 4, 14),
+    darkMat
+  );
+  band.rotation.x = Math.PI / 2;
+  band.position.y = 0.86;
+  g.add(band);
+
+  // Beard (50% chance)
+  if (Math.random() < 0.5) {
+    const beard = new THREE.Mesh(
+      new THREE.SphereGeometry(0.07, 10, 8, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.4),
+      darkMat
+    );
+    beard.position.set(0, 0.77, 0.03);
+    g.add(beard);
+  }
+
+  // Arms — short cylinders tucked slightly forward (like cheering)
+  for (let s = -1; s <= 1; s += 2) {
+    const arm = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.045, 0.05, 0.35, 6),
+      robeMat
+    );
+    const armUp = Math.random() < 0.4; // some raising arms
+    if (armUp) {
+      arm.position.set(s * 0.15, 0.78, 0);
+      arm.rotation.z = -s * 0.2;
+      arm.rotation.x = -0.3;
+    } else {
+      arm.position.set(s * 0.16, 0.45, 0.02);
+      arm.rotation.z = -s * 0.15;
+    }
+    g.add(arm);
+  }
+
+  g.position.set(x, -0.4, z);
+  g.rotation.y = rot;
+  return g;
+}
+
+// Place tents around the scene (dist <= 7.5 so they sit near flat terrain)
+[
+  { x: -7.2, z:  1.5, r:  0.6, c1: 0xB85C38, c2: 0xE8C088 },
+  { x:  7.2, z:  0.8, r: -0.6, c1: 0x8E3B2C, c2: 0xE0B070 },
+  { x: -6.5, z: -5,   r:  0.9, c1: 0x6B4332, c2: 0xD6B080 },
+  { x:  6.5, z: -5,   r: -0.9, c1: 0xAF5A3B, c2: 0xEED5A3 },
+  { x:  1.8, z: -7.2, r:  0.2, c1: 0x7A4B33, c2: 0xD4AE80 }
+].forEach(t => scene.add(createTent(t.x, t.z, t.r, 0.9, t.c1, t.c2)));
+
+// Archway gate on far side (behind finish line area)
+scene.add(createArchway(-2.5, -7.5, 0.15, 1.0));
+
+// Braziers around track for warm glow
+[
+  [0, -6.5], [6.5, 0], [0, 6.5], [-6.5, 0],
+  [4.8, -4.8], [-4.8, -4.8], [4.8, 4.8], [-4.8, 4.8]
+].forEach(([x, z]) => scene.add(createTorch(x, z)));
+
+// Spectators around the track, facing inward
+const spectatorPalettes = ['tan', 'white', 'blue', 'red', 'green'];
+function placeSpectatorGroup(cx, cz, count) {
+  for (let i = 0; i < count; i++) {
+    const jx = (Math.random() - 0.5) * 0.7;
+    const jz = (Math.random() - 0.5) * 0.7;
+    const x = cx + jx, z = cz + jz;
+    // face toward track center (0,0)
+    const rot = Math.atan2(-x, -z);
+    const pal = spectatorPalettes[Math.floor(Math.random() * spectatorPalettes.length)];
+    scene.add(createSpectator(x, z, rot, pal));
+  }
+}
+// Clusters at 8 points around the track (outside track radius 5.5, within dist 7)
+[
+  [0, -6.8], [5.2, -5.2], [6.8, 0], [5.2, 5.2],
+  [0, 6.8],  [-5.2, 5.2], [-6.8, 0], [-5.2, -5.2]
+].forEach(([x, z]) => placeSpectatorGroup(x, z, 2 + Math.floor(Math.random() * 2)));
+
+// ── DICE ──
+let diceGroup = new THREE.Group();
+scene.add(diceGroup);
+
+function createDie(color) {
+  const group = new THREE.Group();
+  const s = 0.3;
+  const mat = new THREE.MeshStandardMaterial({
+    color: color,
+    roughness: 0.15,
+    metalness: 0.4,
+    emissive: color,
+    emissiveIntensity: 0.08
+  });
+  
+  const body = new THREE.Mesh(new THREE.BoxGeometry(s, s, s), mat);
+  body.castShadow = true;
+  group.add(body);
+  
+  // Bevel edges
+  const eMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.15, metalness: 0.3 });
+  [
+    {r:[0,0,Math.PI/4],p:[s/2-0.03,0,0]},
+    {r:[0,0,-Math.PI/4],p:[-s/2+0.03,0,0]},
+    {r:[Math.PI/4,0,0],p:[0,s/2-0.03,0]},
+    {r:[-Math.PI/4,0,0],p:[0,-s/2+0.03,0]},
+    {r:[0,Math.PI/4,0],p:[0,0,s/2-0.03]},
+    {r:[0,-Math.PI/4,0],p:[0,0,-s/2+0.03]}
+  ].forEach(({r,p}) => {
+    const e = new THREE.Mesh(new THREE.PlaneGeometry(s*0.18, s*0.9), eMat);
+    e.rotation.set(r[0],r[1],r[2]);
+    e.position.set(p[0],p[1],p[2]);
+    group.add(e);
+  });
+  
+  // Dots (one face)
+  const dotMat2 = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.3 });
+  const v = Math.floor(Math.random() * 6) + 1;
+  const patterns = [[[0,0]], [[-1,-1],[1,1]], [[-1,-1],[0,0],[1,1]],
+    [[-1,-1],[-1,1],[1,-1],[1,1]], [[-1,-1],[-1,1],[0,0],[1,-1],[1,1]],
+    [[-1,-1],[-1,0],[-1,1],[1,-1],[1,0],[1,1]]];
+  const dots = patterns[v-1] || [[0,0]];
+  dots.forEach(([dx, dy]) => {
+    const d = new THREE.Mesh(new THREE.SphereGeometry(s*0.05, 6, 6), dotMat2);
+    d.position.set(dx*s*0.12, dy*s*0.12 + s*0.04, s*0.47);
+    group.add(d);
+  });
+  
+  return group;
+}
+
+// ── DICE FALL ANIMATION ──
+let diceList = [], diceAnimating = false, isSpawning = false, titleDiceDisabled = false;
+
+function spawnDice() {
+  while(diceGroup.children.length) diceGroup.remove(diceGroup.children[0]);
+  
+  const colors = [0x4FC3F7, 0xEF5350, 0x66BB6A, 0xFFEE58, 0xFAFAFA];
+  const list = [];
+  
+  colors.forEach((color, i) => {
+    const die = createDie(color);
+    const angle = (i / 5) * Math.PI * 2 + Math.random() * 0.3;
+    const dist = 1 + Math.random() * 1.5;
+    die.position.set(Math.cos(angle) * dist, 2.5 + Math.random() * 1.5, Math.sin(angle) * dist);
+    die.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+    die.scale.set(0, 0, 0);
+    die.userData = {
+      targetY: -0.15 + Math.random() * 0.3,
+      delay: Math.random() * 0.4,
+      rotSpeed: (Math.random() - 0.5) * 0.25,
+      phase: 0
+    };
+    diceGroup.add(die);
+    list.push(die);
+  });
+  return list;
+}
+
+function startDiceFall() {
+  if (isSpawning || titleDiceDisabled) return;
+  isSpawning = true;
+  diceList = spawnDice();
+  diceAnimating = true;
+}
+
+setTimeout(startDiceFall, 800);
+setInterval(() => {
+  if (!diceAnimating && !titleDiceDisabled) startDiceFall();
+}, 10000);
+
+// ── CAMERA ──
+let isDragging = false, prevX = 0;
+let targetAngle = 0, targetHeight = 5.5;
+let camAngle = 0, camHeight = 5.5;
+let camDist = 16, targetCamDist = 16;
+
+renderer.domElement.addEventListener('pointerdown', e => {
+  isDragging = true; prevX = e.clientX;
+});
+window.addEventListener('pointermove', e => {
+  if (!isDragging) return;
+  targetAngle -= (e.clientX - prevX) * 0.005;
+  prevX = e.clientX;
+});
+window.addEventListener('pointerup', () => { isDragging = false; });
+
+// ── RESIZE ──
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  if (composer) composer.setSize(window.innerWidth, window.innerHeight);
+  if (bloomPass) bloomPass.resolution.set(window.innerWidth, window.innerHeight);
+  if (ssaoPass) ssaoPass.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ── ANIMATION ──
+const clock = new THREE.Clock();
+const dustData = dust;
+
+function animate() {
+  const delta = clock.getDelta();
+  const time = clock.getElapsedTime();
+  
+  // Camera
+  camAngle += (targetAngle - camAngle) * 0.04;
+  camHeight += (targetHeight - camHeight) * 0.04;
+  camDist += (targetCamDist - camDist) * 0.04;
+  camera.position.x = Math.sin(camAngle) * camDist;
+  camera.position.z = Math.cos(camAngle) * camDist;
+  camera.position.y = camHeight;
+  camera.lookAt(0, 0.2, 0);
+  
+  // Stars
+  stars.rotation.y += delta * 0.003;
+  
+  // Moon glow
+  moonGroup.children.forEach((child, i) => {
+    if (child.type === 'Mesh' && child.geometry.type === 'RingGeometry') {
+      child.material.opacity = (0.02 - i * 0.005) + Math.sin(time * 0.3 + i) * 0.005;
+    }
+  });
+  
+  // Torch flicker
+  torchLights.forEach((t, i) => {
+    const flick = 0.7 + Math.sin(time * 8 + i * 1.7) * 0.15 + Math.random() * 0.15;
+    t.light.intensity = t.baseI * flick;
+    t.flame.scale.set(1, 0.9 + flick * 0.3, 1);
+    t.flameCore.scale.set(1, 0.9 + flick * 0.3, 1);
+    t.glow.material.opacity = 0.15 + flick * 0.08;
+  });
+
+  // Dust particles - gentle floating
+  const dustPos = dustData.geom.attributes.position.array;
+  const dustOffset = dustData.geom.attributes.offset?.array || new Float32Array(400);
+  for (let i = 0; i < dustPos.length/3; i++) {
+    dustPos[i*3+1] += Math.sin(time * 0.2 + dustOffset[i]) * 0.002;
+    dustPos[i*3] += Math.sin(time * 0.05 + i) * 0.001;
+    dustPos[i*3+2] += Math.cos(time * 0.05 + i * 0.7) * 0.001;
+  }
+  dustData.geom.attributes.position.needsUpdate = true;
+  
+  // Dice animation
+  if (diceAnimating) {
+    let allDone = true;
+    diceList.forEach(die => {
+      die.userData.phase += delta;
+      if (die.userData.phase < die.userData.delay) { allDone = false; return; }
+      const p = Math.min((die.userData.phase - die.userData.delay) / 1.2, 1);
+      if (p < 1) {
+        allDone = false;
+        const ease = 1 - Math.pow(1 - p, 3);
+        die.scale.set(ease, ease, ease);
+        const fallY = 2.5 + 1.5 - (2.5 + 1.5 - die.userData.targetY) * ease;
+        const bounce = p > 0.6 ? Math.sin((p - 0.6) / 0.4 * Math.PI) * 0.15 * (1 - (p - 0.6) / 0.4) : 0;
+        die.position.y = fallY + bounce;
+        die.rotation.x += die.userData.rotSpeed * delta * 25;
+        die.rotation.y += die.userData.rotSpeed * delta * 20;
+        die.rotation.z += die.userData.rotSpeed * delta * 15;
+      } else {
+        die.scale.set(1, 1, 1);
+        die.position.y = die.userData.targetY;
+      }
+    });
+    if (allDone) { diceAnimating = false; isSpawning = false; }
+  }
+
+  // Update GLB animation mixers (walk cycles for camels etc.)
+  for (let i = 0; i < animMixers.length; i++) animMixers[i].update(delta);
+
+  if (composer) composer.render(delta);
+  else renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+animate();
+
+// ════════════════════════════════════════════════════════
+// ── GAME SYSTEM ──
+// ════════════════════════════════════════════════════════
+
+const TRACK_TILES = 16;
+const FINISH_TILE = 15;            // last tile (16 in 1-indexed display)
+const STACK_DY = 0.55;
+const COINS_START = 3;
+const LEG_BET_PAYOUTS = [5, 3, 1]; // first/second/third taker get this for 1st place camel
+const SECOND_PLACE_LEG_BONUS = 1;  // payout if your bet camel finished 2nd in leg
+const WRONG_LEG_PENALTY = -1;      // payout if 3rd-5th
+const FINAL_BET_PAYOUTS = [8, 5, 3, 2]; // first/second/third/fourth correct final bettor
+const WRONG_FINAL_PENALTY = -1;
+
+// 5 normal racing camels + 2 crazy (move backward) — full Camel Up rules
+const CAMELS = [
+  { key: 'blue',   hex: 0x4FC3F7, accent: 0x0277BD, name: '파랑',  isCrazy: false, dir: +1 },
+  { key: 'green',  hex: 0x66BB6A, accent: 0x2E7D32, name: '초록',  isCrazy: false, dir: +1 },
+  { key: 'red',    hex: 0xEF5350, accent: 0xC62828, name: '빨강',  isCrazy: false, dir: +1 },
+  { key: 'yellow', hex: 0xFDD835, accent: 0xF57F17, name: '노랑',  isCrazy: false, dir: +1 },
+  { key: 'purple', hex: 0xAB47BC, accent: 0x6A1B9A, name: '보라',  isCrazy: false, dir: +1 },
+  { key: 'black',  hex: 0x424242, accent: 0x212121, name: '검정',  isCrazy: true,  dir: -1 },
+  { key: 'white',  hex: 0xFAFAFA, accent: 0x9E9E9E, name: '하양',  isCrazy: true,  dir: -1 }
+];
+const CAMEL_BY_KEY = Object.fromEntries(CAMELS.map(c => [c.key, c]));
+const NORMAL_KEYS = CAMELS.filter(c => !c.isCrazy).map(c => c.key);
+const CRAZY_KEYS  = CAMELS.filter(c =>  c.isCrazy).map(c => c.key);
+
+// Delegate to the oval track helpers defined above (TRACK_A/TRACK_B)
+function tileAngle(i){ return trackTileAngle(i); }
+function tilePos(i){
+  const p = trackTilePos(i);
+  return { x: p.x, z: p.z, angle: trackTileAngle(i) };
+}
+function tileFacing(i){ return trackTileFacing(i); }
+
+// ── 3D CAMEL MODEL ──
+function createCamel(camelDef) {
+  const g = new THREE.Group();
+  const bodyMat   = new THREE.MeshStandardMaterial({ color: camelDef.hex,    roughness: 0.65, metalness: 0.05 });
+  const accentMat = new THREE.MeshStandardMaterial({ color: camelDef.accent, roughness: 0.7,  metalness: 0.05 });
+  const darkMat   = new THREE.MeshStandardMaterial({ color: 0x3E2723, roughness: 0.9 });
+  const eyeMat    = new THREE.MeshBasicMaterial({ color: 0x111111 });
+
+  // body
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.26, 0.32), bodyMat);
+  body.position.y = 0.3; body.castShadow = true; g.add(body);
+
+  // saddle blanket (accent)
+  const blanket = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.05, 0.34), accentMat);
+  blanket.position.y = 0.45; g.add(blanket);
+
+  // humps
+  for (let i = 0; i < 2; i++) {
+    const h = new THREE.Mesh(new THREE.SphereGeometry(0.13, 14, 10), bodyMat);
+    h.position.set(-0.08 + i * 0.16, 0.5, 0);
+    h.scale.set(1, 1.1, 1);
+    h.castShadow = true; g.add(h);
+  }
+
+  // neck
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.32, 10), bodyMat);
+  neck.position.set(0.28, 0.5, 0);
+  neck.rotation.z = -0.65;
+  neck.castShadow = true; g.add(neck);
+
+  // head
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 14, 10), bodyMat);
+  head.position.set(0.42, 0.66, 0);
+  head.scale.set(1.2, 1, 1);
+  head.castShadow = true; g.add(head);
+
+  // snout
+  const snout = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.08, 0.1), bodyMat);
+  snout.position.set(0.5, 0.62, 0); g.add(snout);
+
+  // ears
+  for (let s = -1; s <= 1; s += 2) {
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.06, 5), bodyMat);
+    ear.position.set(0.4, 0.78, s * 0.06);
+    ear.rotation.x = s * 0.3;
+    g.add(ear);
+  }
+  // eyes
+  for (let s = -1; s <= 1; s += 2) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.02, 6, 6), eyeMat);
+    eye.position.set(0.48, 0.7, s * 0.07); g.add(eye);
+  }
+
+  // legs
+  const legs = [];
+  for (let i = 0; i < 4; i++) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.045, 0.32, 8), bodyMat);
+    const lx = (i < 2 ? 0.18 : -0.18);
+    const lz = (i % 2 === 0 ? 0.11 : -0.11);
+    leg.position.set(lx, 0.13, lz);
+    leg.castShadow = true;
+    leg.userData.basePhase = i * Math.PI / 2;
+    g.add(leg); legs.push(leg);
+    // hoof
+    const hoof = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.04, 8), darkMat);
+    hoof.position.set(lx, -0.04, lz); g.add(hoof);
+  }
+
+  // tail
+  const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.04, 0.18, 6), bodyMat);
+  tail.position.set(-0.32, 0.34, 0);
+  tail.rotation.z = 0.9;
+  g.add(tail);
+  const tailTuft = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), darkMat);
+  tailTuft.position.set(-0.4, 0.22, 0); g.add(tailTuft);
+
+  g.userData = { legs, runT: 0, key: camelDef.key };
+  return g;
+}
+
+// ── GAME STATE ──
+const game = {
+  active: false,
+  inGame: false,
+  rolling: false,
+  gameEnded: false,
+  awaitingHumanAction: false,
+
+  // Turn / leg
+  legNumber: 1,
+  startingPlayerIdx: 0,
+  currentPlayerIdx: 0,
+
+  // Players (1 human + 3 AI)
+  players: [],
+
+  // Camels
+  positions: {},
+  stacks: [],
+  camelMeshes: {},
+  finishedOrder: [],
+
+  // Pyramid dice (5 colored + 1 gray)
+  pyramidDice: [],
+  diceRolledThisLeg: 0,
+
+  // Leg bet card supply (color -> array of payouts; index 0 is top of stack)
+  legBetSupply: {},
+
+  // Final bet decks (in placement order)
+  finalWinBets: [],
+  finalLoseBets: [],
+
+  // Spectator tiles on track (tileIdx -> { playerIdx, side })
+  spectatorTiles: {},
+
+  // Total dice rolled across the whole game (used to detect "no roll yet" → side-by-side starting layout)
+  totalDiceRolled: 0
+};
+
+// ── CREATE CAMELS (added to scene once, reused) ──
+const camelGroup = new THREE.Group();
+scene.add(camelGroup);
+CAMELS.forEach(def => {
+  const m = createCamel(def);
+  m.visible = false;
+  camelGroup.add(m);
+  game.camelMeshes[def.key] = m;
+});
+
+// ── OPTIONAL GLB ASSET SYSTEM ──
+// If the user drops files into `assets/models/`, they will be loaded and replace
+// the procedural primitives automatically. See `assets/README.md` for instructions.
+const ASSET_BASE = 'assets/models/';
+const gltfLoader = (typeof THREE.GLTFLoader === 'function') ? new THREE.GLTFLoader() : null;
+// animMixers declared at top of script
+
+function tryLoadGLB(filename) {
+  return new Promise(resolve => {
+    if (!gltfLoader) return resolve(null);
+    gltfLoader.load(
+      ASSET_BASE + filename,
+      gltf => resolve(gltf),
+      undefined,
+      _err => resolve(null) // 404 / network error: silently fall back to primitive
+    );
+  });
+}
+
+// Compute scale factor so model height fits a target world height
+function fitScale(obj, targetHeight) {
+  const bbox = new THREE.Box3().setFromObject(obj);
+  const size = new THREE.Vector3(); bbox.getSize(size);
+  return targetHeight / Math.max(0.0001, size.y);
+}
+
+// Try to upgrade camels with a GLB model
+tryLoadGLB('camel.glb').then(gltf => {
+  if (!gltf) return;
+  const baseModel = gltf.scene;
+  const scale = fitScale(baseModel, 0.85);
+  CAMELS.forEach(def => {
+    const inst = baseModel.clone(true);
+    inst.scale.setScalar(scale);
+    inst.traverse(o => {
+      if (o.isMesh && o.material) {
+        const mat = o.material.clone();
+        // tint primary diffuse to camel color (preserves textures' brightness)
+        mat.color = new THREE.Color(def.hex);
+        if (mat.emissive) mat.emissive = new THREE.Color(def.hex).multiplyScalar(0.05);
+        o.material = mat;
+        o.castShadow = true;
+        o.receiveShadow = true;
+      }
+    });
+    // copy state from primitive
+    const old = game.camelMeshes[def.key];
+    inst.visible = old.visible;
+    inst.position.copy(old.position);
+    inst.rotation.copy(old.rotation);
+    // if the GLB has a walk animation, set up a mixer
+    if (gltf.animations && gltf.animations.length > 0) {
+      const mixer = new THREE.AnimationMixer(inst);
+      // pick first clip (typical "walk"/"idle" name)
+      const clip = gltf.animations.find(c => /walk|run|move/i.test(c.name)) || gltf.animations[0];
+      const action = mixer.clipAction(clip);
+      action.play();
+      action.paused = true; // resume during movement
+      inst.userData.mixer = mixer;
+      inst.userData.walkAction = action;
+      animMixers.push(mixer);
+    }
+    inst.userData.key = def.key;
+    camelGroup.remove(old);
+    camelGroup.add(inst);
+    game.camelMeshes[def.key] = inst;
+  });
+  console.info('[camel-rush] Loaded GLB camel asset.');
+});
+
+// Try to upgrade palm trees: replace each primitive palm with a GLB instance.
+tryLoadGLB('palm.glb').then(gltf => {
+  if (!gltf || palmObjects.length === 0) return;
+  const baseModel = gltf.scene;
+  const scale = fitScale(baseModel, 2.6); // palms are ~2.6 world units tall
+  palmObjects.forEach(palm => {
+    const inst = baseModel.clone(true);
+    inst.scale.setScalar(scale * (palm.userData.sc || 1));
+    inst.position.copy(palm.position);
+    inst.rotation.y = Math.random() * Math.PI * 2;
+    inst.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    scene.add(inst);
+    scene.remove(palm);
+  });
+  console.info('[camel-rush] Loaded GLB palm asset.');
+});
+
+// ── HDR ENVIRONMENT (assets/textures/sky.hdr) ──
+// Loads a Polyhaven-style equirectangular HDR for image-based reflections on
+// metallic surfaces (golden domes, brass trim, dice). If absent: silent fallback.
+if (typeof THREE.RGBELoader === 'function') {
+  new THREE.RGBELoader().load(
+    'assets/textures/sky.hdr',
+    tex => {
+      tex.mapping = THREE.EquirectangularReflectionMapping;
+      scene.environment = tex;
+      console.info('[camel-rush] Loaded HDR environment.');
+    },
+    undefined,
+    () => { /* silent: HDR optional */ }
+  );
+}
+
+// ── PBR TEXTURE SETS (assets/textures/sand/{albedo,normal,rough}.jpg) ──
+// Replaces procedural sand with high-quality PBR maps if found.
+const texLoader = new THREE.TextureLoader();
+function loadTextureOptional(path) {
+  return new Promise(resolve => {
+    texLoader.load(path, t => resolve(t), undefined, () => resolve(null));
+  });
+}
+function loadPBRSet(folder) {
+  return Promise.all([
+    loadTextureOptional(`assets/textures/${folder}/albedo.jpg`),
+    loadTextureOptional(`assets/textures/${folder}/normal.jpg`),
+    loadTextureOptional(`assets/textures/${folder}/rough.jpg`),
+    loadTextureOptional(`assets/textures/${folder}/ao.jpg`)
+  ]);
+}
+
+loadPBRSet('sand').then(([albedo, normal, rough, ao]) => {
+  if (!albedo) return;
+  // Find sand terrain mesh (tagged earlier)
+  scene.traverse(obj => {
+    if (obj.isMesh && obj.userData && obj.userData.isSandTerrain) {
+      const repeat = 8;
+      [albedo, normal, rough, ao].filter(Boolean).forEach(t => {
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.repeat.set(repeat, repeat);
+      });
+      obj.material.map = albedo;
+      if (normal) obj.material.normalMap = normal;
+      if (rough)  obj.material.roughnessMap = rough;
+      if (ao)     obj.material.aoMap = ao;
+      obj.material.color = new THREE.Color(0xFFFFFF); // let albedo dictate color
+      obj.material.needsUpdate = true;
+    }
+  });
+  console.info('[camel-rush] Loaded PBR sand textures.');
+});
+
+// ── AI BOARD ILLUSTRATION OVERRIDE (assets/textures/board.png) ──
+// If a single illustration of the entire board exists, use it INSTEAD of the
+// procedural canvas painting. Image should match the oval board layout, with
+// the long axis horizontal and 16 numbered tiles around an ellipse.
+loadTextureOptional('assets/textures/board.png').then(tex => {
+  if (!tex) return;
+  tex.encoding = THREE.sRGBEncoding;
+  tex.anisotropy = 8;
+  scene.traverse(obj => {
+    if (obj.isMesh && obj.userData && obj.userData.isBoard) {
+      obj.material.map = tex;
+      obj.material.needsUpdate = true;
+    }
+  });
+  console.info('[camel-rush] Loaded AI board illustration override.');
+});
+
+// ── IN-GAME DICE (separate from title dice) ──
+const gameDiceGroup = new THREE.Group();
+scene.add(gameDiceGroup);
+
+function clearGameDice(){
+  while(gameDiceGroup.children.length) gameDiceGroup.remove(gameDiceGroup.children[0]);
+}
+
+function createSimpleDie(color, value){
+  const g = new THREE.Group();
+  const s = 0.32;
+  const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.2, metalness: 0.4, emissive: color, emissiveIntensity: 0.12 });
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(s, s, s), mat));
+  // top face dots showing value
+  const dotMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const layouts = {
+    1: [[0,0]],
+    2: [[-1,-1],[1,1]],
+    3: [[-1,-1],[0,0],[1,1]]
+  };
+  (layouts[value] || []).forEach(([dx,dz]) => {
+    const d = new THREE.Mesh(new THREE.SphereGeometry(s*0.07, 8, 6), dotMat);
+    d.position.set(dx*s*0.25, s*0.51, dz*s*0.25);
+    g.add(d);
+  });
+  return g;
+}
+
+// ── STACK & POSITION HELPERS ──
+function placeCamelOnTile(camelKey, tileIdx, stackHeight){
+  const mesh = game.camelMeshes[camelKey];
+  const def = CAMEL_BY_KEY[camelKey];
+  // Finished or off-track placement
+  if (def.dir === +1 && tileIdx > FINISH_TILE) {
+    const p = tilePos(FINISH_TILE);
+    mesh.position.set(p.x * 1.18, -0.33 + stackHeight * STACK_DY, p.z * 1.18);
+    mesh.rotation.y = tileFacing(FINISH_TILE);
+    return;
+  }
+  if (def.dir === -1 && tileIdx < 0) {
+    const p = tilePos(0);
+    mesh.position.set(p.x * 1.18, -0.33 + stackHeight * STACK_DY, p.z * 1.18);
+    mesh.rotation.y = tileFacing(0) + Math.PI;
+    return;
+  }
+  const safeIdx = Math.max(0, Math.min(FINISH_TILE, tileIdx));
+  const p = tilePos(safeIdx);
+  const yaw = tileFacing(safeIdx);
+  const stk = game.stacks[safeIdx] || [];
+
+  // Pre-game starting line-up: spread camels on the same tile side-by-side (perpendicular to travel direction)
+  // instead of stacking them vertically. Once any die has been rolled, normal vertical stacking resumes.
+  let xOff = 0, zOff = 0;
+  let yLevel = stackHeight;
+  if (game.totalDiceRolled === 0 && stk.length > 1) {
+    const spacing = 0.22;
+    const off = (stk.length > 1) ? (stackHeight - (stk.length - 1) / 2) * spacing : 0;
+    // Perpendicular to camel forward direction (yaw): forward=(cos yaw, -sin yaw); perp=(-sin yaw, -cos yaw)
+    xOff = -Math.sin(yaw) * off;
+    zOff = -Math.cos(yaw) * off;
+    yLevel = 0;
+  }
+
+  mesh.position.set(p.x + xOff, -0.33 + yLevel * STACK_DY, p.z + zOff);
+  // Crazies face opposite of normal travel direction
+  mesh.rotation.y = yaw + (def.dir === -1 ? Math.PI : 0);
+}
+
+function refreshStackPositions(){
+  for (let t = 0; t < TRACK_TILES; t++) {
+    const stk = game.stacks[t];
+    if (!stk) continue;
+    stk.forEach((key, lvl) => placeCamelOnTile(key, t, lvl));
+  }
+  // Finished camels: line up just past the finish (or past tile 0 if crazy)
+  game.finishedOrder.forEach((key, i) => {
+    const def = CAMEL_BY_KEY[key];
+    const mesh = game.camelMeshes[key];
+    const refTile = (def.dir === +1) ? FINISH_TILE : 0;
+    const p = tilePos(refTile);
+    mesh.position.set(p.x * 1.3 + i * 0.05, -0.33, p.z * 1.3);
+    mesh.rotation.y = tileFacing(refTile) + (def.dir === -1 ? Math.PI : 0);
+  });
+}
+
+// ── PLAYER FACTORY ──
+function makePlayer(idx, name, isHuman, defaultSide) {
+  return {
+    idx, name, isHuman,
+    coins: COINS_START,
+    legBets: [],                               // [{ color, payout }]
+    finalBetCards: NORMAL_KEYS.slice(),        // colors player has not yet final-bet on
+    spectatorTile: { side: defaultSide || 'cheer', placed: null }
+  };
+}
+
+// ── INIT / RESET GAME ──
+function initGameState(){
+  // Players
+  game.players = [
+    makePlayer(0, '나',        true,  'cheer'),
+    makePlayer(1, '🤖 알리',   false, 'boo'),
+    makePlayer(2, '🤖 파리드', false, 'cheer'),
+    makePlayer(3, '🤖 자라',   false, 'boo')
+  ];
+  game.startingPlayerIdx = 0;
+  game.currentPlayerIdx = 0;
+  game.legNumber = 1;
+
+  game.positions = {};
+  game.stacks = Array.from({ length: TRACK_TILES }, () => []);
+  game.finishedOrder = [];
+
+  // Reset leg bet card supply for all 5 normal colors
+  game.legBetSupply = {};
+  NORMAL_KEYS.forEach(c => game.legBetSupply[c] = LEG_BET_PAYOUTS.slice());
+
+  game.finalWinBets = [];
+  game.finalLoseBets = [];
+  game.spectatorTiles = {};
+  game.gameEnded = false;
+  game.awaitingHumanAction = false;
+  game.rolling = false;
+
+  // All camels start at tile 0 (START line), spread side-by-side, no stacking
+  NORMAL_KEYS.forEach(k => {
+    game.stacks[0].push(k);
+    game.positions[k] = 0;
+    game.camelMeshes[k].visible = true;
+  });
+  CRAZY_KEYS.forEach(k => {
+    game.stacks[0].push(k);
+    game.positions[k] = 0;
+    game.camelMeshes[k].visible = true;
+  });
+
+  resetPyramid();
+  refreshStackPositions();
+}
+
+function resetPyramid() {
+  game.pyramidDice = NORMAL_KEYS.slice().concat(['gray']); // 6 dice
+  game.diceRolledThisLeg = 0;
+}
+
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+// ── PICK CRAZY CAMEL TO MOVE (when gray die rolled) ──
+// Real rule: the crazy camel with NO normal camels stacked on top moves.
+// If both eligible, the more advanced (further along its direction) moves.
+// Tiebreak: random.
+function pickCrazyToMove() {
+  const candidates = CRAZY_KEYS.map(k => {
+    const t = game.positions[k];
+    if (t < 0 || t > FINISH_TILE) return null;
+    const stk = game.stacks[t] || [];
+    const idx = stk.indexOf(k);
+    const above = stk.slice(idx + 1);
+    const normalAbove = above.filter(x => !CAMEL_BY_KEY[x].isCrazy).length;
+    return { key: k, normalAbove, tile: t };
+  }).filter(Boolean);
+  if (candidates.length === 0) return null;
+  // Prefer the one with no normal camels above; among those, the more advanced
+  // (lower tile, since they go backward toward 0).
+  candidates.sort((a, b) => a.normalAbove - b.normalAbove || a.tile - b.tile);
+  return candidates[0].key;
+}
+
+// ── ANIMATE CAMEL MOVE (with stack carry, direction, spectator tile bumps) ──
+async function animateCamelMove(camelKey, steps){
+  const def = CAMEL_BY_KEY[camelKey];
+  const dir = def.dir;
+  const fromTile = game.positions[camelKey];
+  const stkFrom = game.stacks[fromTile];
+  if (!stkFrom) return;
+  const idx = stkFrom.indexOf(camelKey);
+  if (idx < 0) return;
+  const moving = stkFrom.slice(idx); // this camel + anything above
+
+  // First destination tile after die move
+  let toTile = fromTile + dir * steps;
+  let crossedFinish = (dir === +1 && toTile > FINISH_TILE) ||
+                      (dir === -1 && toTile < 0);
+
+  // Spectator tile bump (only if landing on a tile inside the track)
+  let bumpedBoo = false;
+  if (!crossedFinish && game.spectatorTiles[toTile]) {
+    const spec = game.spectatorTiles[toTile];
+    // Reward spectator tile owner +1 coin
+    game.players[spec.playerIdx].coins += 1;
+    if (spec.side === 'cheer') {
+      toTile += dir; // continue 1 more in camel's natural direction
+    } else { // boo
+      toTile -= dir; // back 1 in opposite direction
+      bumpedBoo = true;
+    }
+    // Re-check finish after bump
+    crossedFinish = (dir === +1 && toTile > FINISH_TILE) ||
+                    (dir === -1 && toTile < 0);
+  }
+
+  // Remove from origin stack
+  stkFrom.splice(idx);
+
+  // Apply state change at destination
+  if (crossedFinish) {
+    moving.forEach(k => {
+      if (!game.finishedOrder.includes(k)) game.finishedOrder.push(k);
+      game.positions[k] = (dir === +1) ? FINISH_TILE + 1 : -1;
+    });
+  } else {
+    const destStack = game.stacks[toTile];
+    if (bumpedBoo) {
+      // Boo: place moving stack at the BOTTOM (others stay on top of moving)
+      moving.forEach(k => game.positions[k] = toTile);
+      game.stacks[toTile] = moving.concat(destStack);
+    } else {
+      moving.forEach(k => {
+        destStack.push(k);
+        game.positions[k] = toTile;
+      });
+    }
+  }
+
+  // Visual hop animation (single arc to destination)
+  await new Promise(res => {
+    const dur = 320 + Math.abs(steps) * 100;
+    const t0 = performance.now();
+    const starts = moving.map(k => {
+      const m = game.camelMeshes[k];
+      return { x: m.position.x, y: m.position.y, z: m.position.z, ry: m.rotation.y };
+    });
+    const targets = moving.map((k, lvl) => {
+      let tx, tz, ry;
+      if (crossedFinish) {
+        const refTile = (dir === +1) ? FINISH_TILE : 0;
+        const p = tilePos(refTile);
+        tx = p.x * 1.25;
+        tz = p.z * 1.25;
+        ry = tileFacing(refTile) + (dir === -1 ? Math.PI : 0);
+      } else {
+        const p = tilePos(toTile);
+        tx = p.x;
+        tz = p.z;
+        ry = tileFacing(toTile) + (dir === -1 ? Math.PI : 0);
+      }
+      const lvlAtDest = (game.stacks[toTile] || []).indexOf(k);
+      const yLevel = (lvlAtDest >= 0 ? lvlAtDest : lvl) * STACK_DY;
+      return { x: tx, y: -0.33 + yLevel, z: tz, ry };
+    });
+
+    function step(){
+      const t = Math.min(1, (performance.now() - t0) / dur);
+      const ease = t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2, 2)/2;
+      moving.forEach((k, i) => {
+        const m = game.camelMeshes[k];
+        const s = starts[i], tgt = targets[i];
+        m.position.x = s.x + (tgt.x - s.x) * ease;
+        m.position.z = s.z + (tgt.z - s.z) * ease;
+        const arc = Math.sin(t * Math.PI) * 0.32;
+        m.position.y = s.y + (tgt.y - s.y) * ease + arc;
+        let dy = tgt.ry - s.ry;
+        while (dy > Math.PI) dy -= Math.PI * 2;
+        while (dy < -Math.PI) dy += Math.PI * 2;
+        m.rotation.y = s.ry + dy * ease;
+        if (m.userData && m.userData.legs) {
+          m.userData.runT = (m.userData.runT || 0) + 0.5;
+          m.userData.legs.forEach(leg => {
+            leg.rotation.x = Math.sin(m.userData.runT + leg.userData.basePhase) * 0.6;
+          });
+        } else if (m.userData && m.userData.walkAction) {
+          m.userData.walkAction.paused = false;
+        }
+      });
+      if (t < 1) requestAnimationFrame(step);
+      else {
+        moving.forEach(k => {
+          const mm = game.camelMeshes[k];
+          if (mm.userData && mm.userData.walkAction) mm.userData.walkAction.paused = true;
+        });
+        res();
+      }
+    }
+    step();
+  });
+
+  refreshStackPositions();
+}
+
+// ── DICE TRAY beside pyramid ──
+// Pyramid base ~3.0 wide at center. Tray placed in front-right of pyramid,
+// on the sand between pyramid and track, visible from top-down game camera.
+const DICE_TRAY = { cx: -0.3, cz: -2.1, radius: 0.7 };
+
+// Create a visible tray (stone platter) on ground
+function createDiceTray(){
+  const g = new THREE.Group();
+  // stone base
+  const base = new THREE.Mesh(
+    new THREE.CylinderGeometry(DICE_TRAY.radius + 0.1, DICE_TRAY.radius + 0.2, 0.08, 20),
+    new THREE.MeshStandardMaterial({ color: 0x8B6E3E, roughness: 0.85 })
+  );
+  base.position.y = -0.36;
+  base.receiveShadow = true;
+  g.add(base);
+  // inner sand
+  const inner = new THREE.Mesh(
+    new THREE.CylinderGeometry(DICE_TRAY.radius, DICE_TRAY.radius, 0.04, 20),
+    new THREE.MeshStandardMaterial({ color: 0xC9A36B, roughness: 0.95 })
+  );
+  inner.position.y = -0.33;
+  inner.receiveShadow = true;
+  g.add(inner);
+  // decorative rim pattern — 8 small studs
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const stud = new THREE.Mesh(
+      new THREE.SphereGeometry(0.04, 8, 6),
+      new THREE.MeshStandardMaterial({ color: 0xFFD166, metalness: 0.6, roughness: 0.3, emissive: 0xFFD166, emissiveIntensity: 0.15 })
+    );
+    stud.position.set(Math.cos(a) * (DICE_TRAY.radius + 0.05), -0.3, Math.sin(a) * (DICE_TRAY.radius + 0.05));
+    g.add(stud);
+  }
+  g.position.set(DICE_TRAY.cx, 0, DICE_TRAY.cz);
+  return g;
+}
+scene.add(createDiceTray());
+
+// ── DICE FALL ANIMATION ──
+async function animateDieFall(color, value, isGray) {
+  const slotIdx = gameDiceGroup.children.length % 6;
+  const slotAngle = (slotIdx / 6) * Math.PI * 2;
+  const slotR = 0.45;
+  const targetX = DICE_TRAY.cx + Math.cos(slotAngle) * slotR;
+  const targetZ = DICE_TRAY.cz + Math.sin(slotAngle) * slotR;
+  const targetY = -0.13;
+
+  const die = createSimpleDie(color, value);
+  if (isGray && die.children[0]) {
+    die.children[0].material.metalness = 0.5;
+    die.children[0].material.roughness = 0.4;
+  }
+  die.position.set(targetX + (Math.random() - 0.5) * 0.3, 4.2, targetZ + (Math.random() - 0.5) * 0.3);
+  die.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+  gameDiceGroup.add(die);
+
+  const startX = die.position.x, startZ = die.position.z, startY = die.position.y;
+  const dur = 600;
+  const t0 = performance.now();
+  await new Promise(res => {
+    function step() {
+      const t = Math.min(1, (performance.now() - t0) / dur);
+      const ease = 1 - Math.pow(1 - t, 3);
+      die.position.y = startY + (targetY - startY) * ease;
+      die.position.x = startX + (targetX - startX) * ease;
+      die.position.z = startZ + (targetZ - startZ) * ease;
+      if (t > 0.7) die.position.y += Math.sin((t - 0.7) / 0.3 * Math.PI) * 0.12 * (1 - t);
+      const rotEase = Math.pow(t, 2);
+      die.rotation.x = die.rotation.x * (1 - rotEase * 0.3) + 0.4 * (1 - rotEase);
+      die.rotation.y = die.rotation.y * (1 - rotEase * 0.3) + 0.35 * (1 - rotEase);
+      die.rotation.z = die.rotation.z * (1 - rotEase * 0.3) + 0.3 * (1 - rotEase);
+      if (t < 1) requestAnimationFrame(step);
+      else { die.rotation.set(0, slotAngle, 0); res(); }
+    }
+    step();
+  });
+}
+
+// ── ROLL ONE DIE FROM PYRAMID (random draw from remaining 6 dice) ──
+async function rollOneDie() {
+  if (game.pyramidDice.length === 0) return null;
+  const idx = Math.floor(Math.random() * game.pyramidDice.length);
+  const dieKey = game.pyramidDice.splice(idx, 1)[0];
+  const value = 1 + Math.floor(Math.random() * 3); // 1..3 (matches dice faces 1,1,2,2,3,3)
+  game.diceRolledThisLeg++;
+
+  // Determine which camel moves
+  let camelKey;
+  if (dieKey === 'gray') {
+    camelKey = pickCrazyToMove();
+    if (!camelKey) camelKey = CRAZY_KEYS[Math.floor(Math.random() * CRAZY_KEYS.length)];
+  } else {
+    camelKey = dieKey;
+  }
+
+  const dieColor = (dieKey === 'gray') ? 0x9E9E9E : CAMEL_BY_KEY[dieKey].hex;
+  await animateDieFall(dieColor, value, dieKey === 'gray');
+  await sleep(220);
+  await animateCamelMove(camelKey, value);
+  return { dieKey, camelKey, value };
+}
+
+// ── RANKING ──
+function getNormalRanking() {
+  const finishedNormal = game.finishedOrder.filter(k => !CAMEL_BY_KEY[k].isCrazy);
+  const ranked = finishedNormal.map(k => ({ key: k, tile: FINISH_TILE + 1, level: 99, finished: true }));
+  const finishedSet = new Set(finishedNormal);
+  const remaining = NORMAL_KEYS.filter(k => !finishedSet.has(k)).map(k => {
+    const t = game.positions[k];
+    const stk = game.stacks[t] || [];
+    return { key: k, tile: t, level: stk.indexOf(k) };
+  });
+  remaining.sort((a, b) => (b.tile - a.tile) || (b.level - a.level));
+  return ranked.concat(remaining);
+}
+
+function getAllRanking() {
+  const ranking = getNormalRanking();
+  CRAZY_KEYS.forEach(k => {
+    const t = game.positions[k];
+    if (game.finishedOrder.includes(k)) {
+      ranking.push({ key: k, tile: -2, level: 0, finished: true, crazy: true });
+      return;
+    }
+    const stk = (t >= 0 && t < TRACK_TILES) ? (game.stacks[t] || []) : [];
+    ranking.push({ key: k, tile: t, level: stk.indexOf(k), crazy: true });
+  });
+  return ranking;
+}
+
+function checkGameEnd() {
+  for (const c of CAMELS) {
+    const t = game.positions[c.key];
+    if (c.dir === +1 && t > FINISH_TILE) return true;
+    if (c.dir === -1 && t < 0) return true;
+  }
+  return false;
+}
+
+// ── UI HELPERS ──
+const $ = id => document.getElementById(id);
+
+function updateHUD() {
+  $('legNum').textContent = game.legNumber;
+  $('diceLeft').textContent = `${game.pyramidDice.length}/6`;
+  const cur = game.players[game.currentPlayerIdx];
+  if (cur) $('currentTurn').textContent = cur.name;
+
+  // Camel ranking
+  const ranking = getAllRanking();
+  const stHtml = ranking.map((r, i) => {
+    const c = CAMEL_BY_KEY[r.key];
+    let posLabel;
+    if (r.finished) posLabel = '🏁';
+    else if (r.tile < 0) posLabel = '⬅';
+    else posLabel = `#${r.tile + 1}`;
+    const colorHex = c.hex.toString(16).padStart(6, '0');
+    const crazyMark = c.isCrazy ? ' <span class="crazy">⚡</span>' : '';
+    return `<div class="st-row"><span class="rk">${i+1}</span>` +
+           `<span class="sw" style="background:#${colorHex}"></span>` +
+           `<span>${c.name}${crazyMark}</span><span class="pos">${posLabel}</span></div>`;
+  }).join('');
+  $('stList').innerHTML = stHtml;
+
+  // Player boards
+  const pbHtml = game.players.map(p => {
+    const isCur = p.idx === game.currentPlayerIdx;
+    const legCnt = p.legBets.length;
+    const finalUsed = NORMAL_KEYS.length - p.finalBetCards.length;
+    const specInfo = (p.spectatorTile.placed !== null)
+      ? `${p.spectatorTile.side === 'cheer' ? '👍' : '👎'}@${p.spectatorTile.placed + 1}`
+      : '—';
+    return `<div class="player-card ${isCur ? 'active' : ''} ${p.isHuman ? 'human' : ''}">` +
+      `<div class="pName">${p.name}</div>` +
+      `<div class="pStats">💰${p.coins} 📜${legCnt} 👥${specInfo} 🏁${finalUsed}/5</div>` +
+      `</div>`;
+  }).join('');
+  $('playerBoard').innerHTML = pbHtml;
+}
+
+function showActionUI(player) {
+  $('actionPanel').classList.add('show');
+  $('actionTitle').textContent = `${player.name}의 차례 — 행동 선택`;
+  $('btnRoll').disabled = game.pyramidDice.length === 0;
+  $('btnLegBet').disabled = !NORMAL_KEYS.some(c => game.legBetSupply[c].length > 0);
+  $('btnSpectator').disabled = false;
+  $('btnFinalBet').disabled = player.finalBetCards.length === 0;
+  $('subMenu').classList.remove('show');
+}
+
+function hideActionUI() {
+  $('actionPanel').classList.remove('show');
+  $('subMenu').classList.remove('show');
+}
+
+function isValidSpectatorPlacement(tileIdx) {
+  if (tileIdx < 0 || tileIdx >= TRACK_TILES) return false;
+  if (game.stacks[tileIdx] && game.stacks[tileIdx].length > 0) return false;
+  if (game.spectatorTiles[tileIdx]) return false;
+  for (const t of [tileIdx - 1, tileIdx + 1]) {
+    if (t >= 0 && t < TRACK_TILES) {
+      if (game.spectatorTiles[t]) return false;
+      if (game.stacks[t] && game.stacks[t].length > 0) return false;
+    }
+  }
+  return true;
+}
+
+function showLegBetMenu() {
+  const menu = $('subMenu');
+  let html = '<div class="subTitle">📜 분단경 베팅 — 색 선택</div><div class="subRow">';
+  NORMAL_KEYS.forEach(k => {
+    const stack = game.legBetSupply[k];
+    if (!stack || stack.length === 0) return;
+    const c = CAMEL_BY_KEY[k];
+    const colorHex = c.hex.toString(16).padStart(6, '0');
+    html += `<button class="mini-btn" data-color="${k}" style="background:#${colorHex}">` +
+      `${c.name}<br><span style="font-size:11px;opacity:0.85">+${stack[0]}💰</span></button>`;
+  });
+  html += '</div><button class="cancel-btn" onclick="window.hideSubMenu()">취소</button>';
+  menu.innerHTML = html;
+  menu.querySelectorAll('[data-color]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      doActionTakeLegBet(game.players[game.currentPlayerIdx], btn.dataset.color);
+    });
+  });
+  menu.classList.add('show');
+}
+
+function showSpectatorMenu() {
+  const cur = game.players[game.currentPlayerIdx];
+  const menu = $('subMenu');
+  let html = '<div class="subTitle">👥 관중판 배치 — 칸 선택 (낙타 인접 불가)</div>';
+  html += `<div class="subSide">
+    <button class="side-btn ${cur.spectatorTile.side === 'cheer' ? 'sel' : ''}" data-side="cheer">👍 응원 (+1칸)</button>
+    <button class="side-btn ${cur.spectatorTile.side === 'boo' ? 'sel' : ''}" data-side="boo">👎 야유 (-1칸)</button>
+  </div>`;
+  html += '<div class="subRow">';
+  for (let t = 0; t < TRACK_TILES; t++) {
+    const valid = isValidSpectatorPlacement(t);
+    const styleEx = valid ? '' : 'opacity:0.25';
+    const disabled = valid ? '' : 'disabled';
+    html += `<button class="mini-btn tile-btn" data-tile="${t}" style="${styleEx}" ${disabled}>${t + 1}</button>`;
+  }
+  html += '</div><button class="cancel-btn" onclick="window.hideSubMenu()">취소</button>';
+  menu.innerHTML = html;
+  menu.querySelectorAll('[data-side]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      cur.spectatorTile.side = btn.dataset.side;
+      showSpectatorMenu(); // re-render with selected side
+    });
+  });
+  menu.querySelectorAll('[data-tile]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      doActionPlaceSpectator(cur, parseInt(btn.dataset.tile, 10), cur.spectatorTile.side);
+    });
+  });
+  menu.classList.add('show');
+}
+
+function showFinalBetMenu() {
+  const cur = game.players[game.currentPlayerIdx];
+  const menu = $('subMenu');
+  let html = '<div class="subTitle">🏁 최종 베팅 — 우승 또는 꼴찌 (게임 종료 시 정산)</div>';
+  html += '<div class="subColumns">';
+  ['win', 'lose'].forEach(type => {
+    html += '<div class="subCol">';
+    html += `<div>${type === 'win' ? '🏆 우승' : '🐢 꼴찌'} 베팅</div>`;
+    html += '<div class="subRow">';
+    cur.finalBetCards.forEach(k => {
+      const c = CAMEL_BY_KEY[k];
+      const colorHex = c.hex.toString(16).padStart(6, '0');
+      html += `<button class="mini-btn" data-fb="${type}|${k}" style="background:#${colorHex}">${c.name}</button>`;
+    });
+    html += '</div></div>';
+  });
+  html += '</div><button class="cancel-btn" onclick="window.hideSubMenu()">취소</button>';
+  menu.innerHTML = html;
+  menu.querySelectorAll('[data-fb]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const [type, color] = btn.dataset.fb.split('|');
+      doActionFinalBet(cur, color, type);
+    });
+  });
+  menu.classList.add('show');
+}
+
+function showToast(msg, color) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.style.color = color || '#FFD700';
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 1500);
+}
+
+window.hideSubMenu = () => $('subMenu').classList.remove('show');
+
+// ── ACTIONS ──
+async function doActionRoll(player) {
+  if (game.rolling) return;
+  game.rolling = true;
+  hideActionUI();
+  const result = await rollOneDie();
+  player.coins += 1;
+  if (result) {
+    const c = CAMEL_BY_KEY[result.camelKey];
+    showToast(`${player.name}: ${c.name} ${c.dir > 0 ? '➡' : '⬅'}${result.value}칸  +1💰`);
+  }
+  game.rolling = false;
+  updateHUD();
+  await sleep(450);
+
+  if (checkGameEnd()) return endGame();
+
+  if (game.diceRolledThisLeg >= 5) {
+    await resolveLeg();
+    if (game.gameEnded) return;
+    // resolveLeg already set currentPlayerIdx to the new starting player; play their turn directly.
+    nextTurn();
+    return;
+  }
+  advancePlayer();
+}
+
+async function doActionTakeLegBet(player, color) {
+  const stack = game.legBetSupply[color];
+  if (!stack || stack.length === 0) return;
+  const payout = stack.shift();
+  player.legBets.push({ color, payout });
+  showToast(`${player.name}: ${CAMEL_BY_KEY[color].name} +${payout}💰 분단경 카드`);
+  hideActionUI();
+  updateHUD();
+  await sleep(450);
+  advancePlayer();
+}
+
+async function doActionPlaceSpectator(player, tileIdx, side) {
+  if (!isValidSpectatorPlacement(tileIdx)) {
+    showToast('해당 칸은 배치 불가', '#EF5350');
+    return;
+  }
+  if (player.spectatorTile.placed !== null) {
+    delete game.spectatorTiles[player.spectatorTile.placed];
+  }
+  player.spectatorTile.side = side;
+  player.spectatorTile.placed = tileIdx;
+  game.spectatorTiles[tileIdx] = { playerIdx: player.idx, side };
+  showToast(`${player.name}: ${tileIdx + 1}칸에 ${side === 'cheer' ? '👍응원' : '👎야유'}`);
+  hideActionUI();
+  updateHUD();
+  await sleep(450);
+  advancePlayer();
+}
+
+async function doActionFinalBet(player, color, type) {
+  if (!player.finalBetCards.includes(color)) return;
+  player.finalBetCards = player.finalBetCards.filter(c => c !== color);
+  const cName = CAMEL_BY_KEY[color].name;
+  if (type === 'win') {
+    game.finalWinBets.push({ playerIdx: player.idx, color });
+    showToast(`${player.name}: ${cName} 🏆우승 베팅`);
+  } else {
+    game.finalLoseBets.push({ playerIdx: player.idx, color });
+    showToast(`${player.name}: ${cName} 🐢꼴찌 베팅`);
+  }
+  hideActionUI();
+  updateHUD();
+  await sleep(450);
+  advancePlayer();
+}
+
+// ── TURN LOOP ──
+function nextTurn() {
+  if (game.gameEnded) return;
+  updateHUD();
+  const player = game.players[game.currentPlayerIdx];
+  if (player.isHuman) {
+    showActionUI(player);
+    game.awaitingHumanAction = true;
+  } else {
+    game.awaitingHumanAction = false;
+    setTimeout(() => aiPlayTurn(player), 750);
+  }
+}
+
+function advancePlayer() {
+  game.currentPlayerIdx = (game.currentPlayerIdx + 1) % game.players.length;
+  nextTurn();
+}
+
+// ── AI HEURISTIC ──
+async function aiPlayTurn(player) {
+  const r = Math.random();
+  let action;
+  const canRoll = game.pyramidDice.length > 0;
+  const canLegBet = NORMAL_KEYS.some(c => game.legBetSupply[c].length > 0);
+  const canSpec = (player.spectatorTile.placed === null);
+  const canFinal = (player.finalBetCards.length > 0);
+
+  if (!canRoll) {
+    if (canLegBet) action = 'legBet';
+    else if (canSpec) action = 'spectator';
+    else if (canFinal) action = 'finalBet';
+    else action = 'pass';
+  } else if (r < 0.55) {
+    action = 'roll';
+  } else if (r < 0.80 && canLegBet) {
+    action = 'legBet';
+  } else if (r < 0.92 && canSpec) {
+    action = 'spectator';
+  } else if (r < 0.97 && canFinal) {
+    action = 'finalBet';
+  } else {
+    action = 'roll';
+  }
+
+  switch (action) {
+    case 'roll':      return doActionRoll(player);
+    case 'legBet':    return aiTakeLegBet(player);
+    case 'spectator': return aiPlaceSpectator(player);
+    case 'finalBet':  return aiFinalBet(player);
+    default:          return advancePlayer();
+  }
+}
+
+async function aiTakeLegBet(player) {
+  const ranking = getNormalRanking();
+  const candidate = ranking.find(r => game.legBetSupply[r.key] && game.legBetSupply[r.key].length > 0);
+  if (!candidate) {
+    const fb = NORMAL_KEYS.find(k => game.legBetSupply[k].length > 0);
+    if (!fb) return doActionRoll(player);
+    return doActionTakeLegBet(player, fb);
+  }
+  return doActionTakeLegBet(player, candidate.key);
+}
+
+async function aiPlaceSpectator(player) {
+  const valid = [];
+  for (let t = 0; t < TRACK_TILES; t++) if (isValidSpectatorPlacement(t)) valid.push(t);
+  if (valid.length === 0) return doActionRoll(player);
+  const tile = valid[Math.floor(Math.random() * valid.length)];
+  return doActionPlaceSpectator(player, tile, player.spectatorTile.side);
+}
+
+async function aiFinalBet(player) {
+  if (player.finalBetCards.length === 0) return doActionRoll(player);
+  const ranking = getNormalRanking();
+  const isWin = Math.random() < 0.6;
+  const cand = isWin
+    ? ranking.find(r => player.finalBetCards.includes(r.key))
+    : ranking.slice().reverse().find(r => player.finalBetCards.includes(r.key));
+  if (!cand) return doActionFinalBet(player, player.finalBetCards[0], 'win');
+  return doActionFinalBet(player, cand.key, isWin ? 'win' : 'lose');
+}
+
+// ── LEG RESOLUTION ──
+async function resolveLeg() {
+  showToast(`📜 분단경 ${game.legNumber} 정산`, '#FFD700');
+  await sleep(900);
+
+  const ranking = getNormalRanking();
+  const firstColor = ranking[0]?.key;
+  const secondColor = ranking[1]?.key;
+
+  const human = game.players[0];
+  let humanDelta = 0;
+  game.players.forEach(p => {
+    let delta = 0;
+    p.legBets.forEach(bet => {
+      if (bet.color === firstColor) delta += bet.payout;
+      else if (bet.color === secondColor) delta += SECOND_PLACE_LEG_BONUS;
+      else delta += WRONG_LEG_PENALTY;
+    });
+    p.coins += delta;
+    if (p === human) humanDelta = delta;
+    p.legBets = [];
+  });
+
+  // Reset for next leg
+  NORMAL_KEYS.forEach(c => game.legBetSupply[c] = LEG_BET_PAYOUTS.slice());
+  resetPyramid();
+  game.startingPlayerIdx = (game.startingPlayerIdx + 1) % game.players.length;
+  game.currentPlayerIdx = game.startingPlayerIdx;
+  game.legNumber++;
+
+  clearGameDice();
+  updateHUD();
+
+  if (humanDelta !== 0) {
+    showToast(`나 ${humanDelta >= 0 ? '+' : ''}${humanDelta} 💰`, humanDelta > 0 ? '#66BB6A' : '#EF5350');
+  }
+  await sleep(1300);
+}
+
+// ── GAME OVER ──
+async function endGame() {
+  game.gameEnded = true;
+  game.active = false;
+  hideActionUI();
+
+  const ranking = getNormalRanking();
+  const winnerColor = ranking[0]?.key;
+  const loserColor = ranking[ranking.length - 1]?.key;
+
+  let winIdx = 0, loseIdx = 0;
+  game.finalWinBets.forEach(bet => {
+    const p = game.players[bet.playerIdx];
+    let delta;
+    if (bet.color === winnerColor) { delta = FINAL_BET_PAYOUTS[winIdx] || 0; winIdx++; }
+    else delta = WRONG_FINAL_PENALTY;
+    p.coins += delta;
+  });
+  game.finalLoseBets.forEach(bet => {
+    const p = game.players[bet.playerIdx];
+    let delta;
+    if (bet.color === loserColor) { delta = FINAL_BET_PAYOUTS[loseIdx] || 0; loseIdx++; }
+    else delta = WRONG_FINAL_PENALTY;
+    p.coins += delta;
+  });
+
+  const sortedPlayers = game.players.slice().sort((a, b) => b.coins - a.coins);
+
+  $('gameUI').classList.remove('show');
+  $('gameOverTitle').textContent = '🏁 게임 종료!';
+  $('winnerText').textContent = `🏆 우승: ${sortedPlayers[0].name} (${sortedPlayers[0].coins}💰)`;
+
+  let html = '<div style="color:#FFD700;font-size:11px;letter-spacing:2px;margin:6px 0">최종 낙타 순위</div>';
+  ranking.forEach((r, i) => {
+    const c = CAMEL_BY_KEY[r.key];
+    const colorHex = c.hex.toString(16).padStart(6, '0');
+    const posLabel = r.finished ? '🏁 완주' : `#${r.tile + 1}칸`;
+    html += `<div class="fr-row"><span class="rk">${i+1}</span>` +
+      `<span class="sw" style="background:#${colorHex}"></span>` +
+      `<span class="nm">${c.name} 낙타</span><span class="pos">${posLabel}</span></div>`;
+  });
+  html += '<div style="color:#FFD700;font-size:11px;letter-spacing:2px;margin:14px 0 6px">플레이어 순위</div>';
+  sortedPlayers.forEach((p, i) => {
+    html += `<div class="fr-row"><span class="rk">${i+1}</span>` +
+      `<span class="nm">${p.name}</span><span class="pos">${p.coins}💰</span></div>`;
+  });
+  $('finalRanking').innerHTML = html;
+  const winName = winnerColor ? CAMEL_BY_KEY[winnerColor].name : '?';
+  const loseName = loserColor ? CAMEL_BY_KEY[loserColor].name : '?';
+  $('finalCoins').textContent = `🏆 ${winName} 우승  ·  🐢 ${loseName} 꼴찌`;
+
+  setTimeout(() => $('gameOverUI').classList.add('show'), 600);
+}
+
+// ── START / RESTART ──
+function startGame() {
+  document.getElementById('ui').style.transition = 'opacity 0.5s';
+  document.getElementById('ui').style.opacity = '0';
+  document.getElementById('ui').style.pointerEvents = 'none';
+  document.getElementById('info').style.opacity = '0';
+  titleDiceDisabled = true;
+  diceAnimating = false;
+  isSpawning = false;
+  while (diceGroup.children.length) diceGroup.remove(diceGroup.children[0]);
+
+  targetHeight = 12;
+  targetCamDist = 11;
+  targetAngle = 0;
+
+  game.inGame = true;
+  game.active = true;
+  initGameState();
+  clearGameDice();
+  updateHUD();
+
+  setTimeout(() => {
+    $('gameUI').classList.add('show');
+    nextTurn();
+  }, 700);
+}
+
+function restartGame() {
+  $('gameOverUI').classList.remove('show');
+  CAMELS.forEach(c => { game.camelMeshes[c.key].visible = false; });
+  setTimeout(() => startGame(), 150);
+}
+
+// ── UI HOOKS ──
+$('startBtn').addEventListener('click', () => {
+  const btn = $('startBtn');
+  btn.style.transform = 'perspective(800px) rotateX(15deg) translateZ(0)';
+  btn.style.boxShadow = '0 2px 0 #BF360C,0 8px 20px rgba(255,111,0,0.3)';
+  setTimeout(() => {
+    btn.style.transform = 'perspective(800px) rotateX(15deg) translateZ(20px)';
+    btn.style.boxShadow = '0 8px 0 #BF360C,0 12px 30px rgba(255,111,0,0.3)';
+    startGame();
+  }, 200);
+});
+$('howBtn').addEventListener('click', () => {
+  alert('🐪 캐멀 러시 (Camel Up — 4인 게임)\n\n' +
+    '4명의 플레이어 (나 + AI 3명)가 차례로 행동합니다.\n' +
+    '각 차례마다 4가지 행동 중 하나를 선택하세요.\n\n' +
+    '1️⃣ 🎲 피라미드 흔들기\n' +
+    '   무작위 주사위 1개를 굴려 해당 색 낙타를 1~3칸 이동시키고 +1💰\n' +
+    '   회색 주사위는 검정/하양 미친낙타가 거꾸로 이동.\n\n' +
+    '2️⃣ 📜 분단경 베팅\n' +
+    '   색 1개 카드를 가져옴. 그 색이 분단경 1등이면 5/3/1💰 (먼저 가질수록 높음).\n' +
+    '   2등이면 +1, 3-5등이면 -1.\n\n' +
+    '3️⃣ 👥 관중판 배치\n' +
+    '   응원/야유 칸을 트랙에 놓음. 낙타가 통과 시 +1💰 본인 보상 + 칸 이동 효과.\n' +
+    '   낙타 인접 칸에는 배치 불가.\n\n' +
+    '4️⃣ 🏁 최종 베팅\n' +
+    '   총우승 또는 꼴찌 낙타 예측. 적중 + 빨리 베팅 = 8/5/3/2💰. 빗나감 -1.\n\n' +
+    '⏱ 분단경 종료: 피라미드의 6주사위 중 5개를 굴리면 정산 후 다음 분단경.\n' +
+    '🏁 게임 종료: 정상낙타가 16칸 돌파 OR 미친낙타가 1칸 후방 이탈.\n' +
+    '🏆 가장 많은 코인을 획득한 플레이어 우승!');
+});
+$('restartBtn').addEventListener('click', restartGame);
+$('btnRoll').addEventListener('click', () => {
+  if (game.awaitingHumanAction) doActionRoll(game.players[game.currentPlayerIdx]);
+});
+$('btnLegBet').addEventListener('click', () => {
+  if (game.awaitingHumanAction) showLegBetMenu();
+});
+$('btnSpectator').addEventListener('click', () => {
+  if (game.awaitingHumanAction) showSpectatorMenu();
+});
+$('btnFinalBet').addEventListener('click', () => {
+  if (game.awaitingHumanAction) showFinalBetMenu();
+});
+</script>
+</body></html>
